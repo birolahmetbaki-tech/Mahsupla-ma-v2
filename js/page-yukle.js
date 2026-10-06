@@ -2,7 +2,7 @@
    Eşleştirme faturadaki EIC / sözleşme no / tesisat no ile aboneliğe yapılır. */
 (function (root) {
   'use strict';
-  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser;
+  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser, K = App.kalemler;
 
   var queue = []; // {id, file, name, status, result, record, abId, error}
   var hedef = 'auto';
@@ -29,6 +29,11 @@
     bar.appendChild(sel);
     if (queue.length) {
       bar.appendChild(UI.el('button', { class: 'btn primary sm', onclick: saveAll }, 'Hazır olanların tümünü kaydet'));
+      bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () {
+        var extra = [];
+        queue.forEach(function (q) { if (q.record) (q.record.kalemler || []).forEach(function (k) { extra.push({ bicim: q.record.bicim, ad: k.ad, tutar: k.tutar }); }); });
+        App.kalemUI.openEslestirme(extra);
+      } }, 'Kalem Eşleştirme'));
       bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { queue = []; render(container); } }, 'Listeyi temizle'));
     }
     page.appendChild(bar);
@@ -180,12 +185,21 @@
       [['Abone', m.musteriAdi], ['VKN', m.vkn], ['Vergi Dairesi', m.vergiDairesi], ['Adres', m.adres], ['Tedarikçi VKN', m.tedarikciVkn], ['Sayaç', m.sayac], ['ETTN', m.ettn]]
         .filter(function (x) { return x[1]; }).map(function (x) { return '<span><i>' + x[0] + ':</i> ' + U.escapeHtml(x[1]) + '</span>'; }).join('')));
 
-    // Alan önizleme / düzeltme
+    // Kalemler: kategorisi tanınmayan varsa açık gelir
+    var tanimsizVar = (r.kalemler || []).some(function (k) { return K.resolve(k.ad, r.bicim, S.eslestirme()).kategori === 'tanimsiz'; });
+    var kdet = UI.el('details', { class: 'preview' });
+    if (tanimsizVar) kdet.open = true;
+    kdet.appendChild(UI.el('summary', null, 'Fatura kalemleri (' + (r.kalemler || []).length + ')' + (tanimsizVar ? ' — tanınmayan kalem var, kategorisini seçin' : '')));
+    kdet.appendChild(App.kalemUI.kalemTable(r, reapplyAll));
+    c.appendChild(kdet);
+
+    // Standart özet önizleme / düzeltme
     var det = UI.el('details', { class: 'preview' });
-    det.appendChild(UI.el('summary', null, 'Okunan değerleri göster / düzelt'));
+    det.appendChild(UI.el('summary', null, 'Standart özeti göster / düzelt'));
     var grid = UI.el('div', { class: 'preview-grid' });
     F.GROUPS.forEach(function (g) {
-      var fs = F.FIELDS.filter(function (f) { return f.group === g.id; });
+      var fs = F.FIELDS.filter(function (f) { return f.group === g.id && !f.hidden; });
+      if (!fs.length) return;
       var sec = UI.el('div', { class: 'pg-group' }, '<h5>' + U.escapeHtml(g.label) + '</h5>');
       fs.forEach(function (f) {
         var v = f.calc ? calc[f.key] : r[f.key];
@@ -196,7 +210,11 @@
           row.appendChild(UI.el('b', { class: st || '' }, v === null || v === undefined ? '—' : U.formatTRNumber(v, f.dec === undefined ? 2 : f.dec)));
         } else {
           var inp = UI.el('input', { type: 'text', value: displayValue(f, v) });
-          inp.onchange = function () { r[f.key] = parseValue(f, inp.value); renderQueue(); };
+          inp.onchange = function () {
+            r[f.key] = parseValue(f, inp.value);
+            r.duzeltilen = r.duzeltilen || {}; r.duzeltilen[f.key] = true; // kalem toplamı bu alanın üzerine yazmasın
+            renderQueue();
+          };
           row.appendChild(inp);
         }
         sec.appendChild(row);
@@ -217,6 +235,20 @@
     foot.appendChild(saveBtn);
     c.appendChild(foot);
     return c;
+  }
+
+  // Eşleştirme değişince bekleyen faturaların özetini de yeniden hesapla
+  function reapplyAll() {
+    queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); });
+    renderQueue();
+  }
+  S.onChange(function () { if (queue.length) queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); }); });
+
+  function detay(r) { return r.detay || {}; }
+  // Sözleşme gücü faturada "Güç Bedeli" kaleminin miktarı (kW) olarak yazar
+  function sozlesmeGucu(r) {
+    var k = (r.kalemler || []).find(function (x) { return /^g[üu][çc] bedeli/i.test(x.ad) && x.miktarBirimi === 'kW'; });
+    return k && k.miktar ? k.miktar : (detay(r).anlasmaGucu || null);
   }
 
   function displayValue(f, v) {
@@ -246,11 +278,11 @@
     // Abonelik kartındaki boş alanları faturadan tamamla
     var changed = false;
     [['eic', rec.eic], ['sozlesmeNo', rec.sozlesmeNo], ['tedarikci', rec.tedarikci], ['tuketiciGrubuFatura', rec.tuketiciGrubu],
-     ['carpan', rec.carpan], ['sozlesmeGucu', rec.gucMiktar]].forEach(function (p) {
+     ['carpan', detay(rec).carpan], ['sozlesmeGucu', sozlesmeGucu(rec)]].forEach(function (p) {
       if ((t[p[0]] === undefined || t[p[0]] === null || t[p[0]] === '') && p[1] !== undefined && p[1] !== null) { t[p[0]] = p[1]; changed = true; }
     });
-    if (rec.gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
-      t.oncekiYilTuketim = rec.gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
+    if (detay(rec).gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
+      t.oncekiYilTuketim = detay(rec).gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
     }
     if (changed) S.abonelikSave(t);
     q.status = 'kaydedildi';
@@ -290,7 +322,7 @@
       tarifeZaman: /Tek Zaman/i.test(grup) ? 'Tek Zamanlı' : /Üç Zaman/i.test(grup) || r.t2Kwh || r.t3Kwh ? 'Üç Zamanlı' : '',
       serbestTuketici: /toptan|ortakl/i.test(r.tedarikci || '') ? 'Evet' : '',
       tedarikci: r.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic, sozlesmeNo: r.sozlesmeNo, tesisatNo: r.tesisatNo,
-      sozlesmeGucu: r.gucMiktar, carpan: r.carpan, oncekiYilTuketim: r.gecmisYilKwh, oncekiYilTuketimDonem: r.donem
+      sozlesmeGucu: sozlesmeGucu(r), carpan: detay(r).carpan, oncekiYilTuketim: detay(r).gecmisYilKwh || null, oncekiYilTuketimDonem: r.donem
     };
     App.pages.tesisler.editAbonelik(null, null, prefill, function (a) {
       q.abId = a.id;

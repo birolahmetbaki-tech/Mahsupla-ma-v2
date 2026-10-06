@@ -240,3 +240,12 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .card-head h4 { margin: 0; text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 14px; }
 .card-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
 .small { font-size: 12px; margin-bottom: 4px; }
+
+/* Kalemler */
+.modal-box.wide { width: min(1100px, 100%); }
+.kalem-table td, .kalem-table th { white-space: nowrap; }
+.kalem-table tr.tanimsiz td { background: var(--warn-bg); }
+.kalem-table select { font: inherit; font-size: 12px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; }
+.kalem-table select.tanimsiz { border-color: var(--warn); color: var(--warn); font-weight: 600; }
+.fatura-detay h4 { margin: 16px 0 6px; }
+.detay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 18px; }

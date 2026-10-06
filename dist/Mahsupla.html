@@ -248,6 +248,15 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .card-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
 .small { font-size: 12px; margin-bottom: 4px; }
 
+/* Kalemler */
+.modal-box.wide { width: min(1100px, 100%); }
+.kalem-table td, .kalem-table th { white-space: nowrap; }
+.kalem-table tr.tanimsiz td { background: var(--warn-bg); }
+.kalem-table select { font: inherit; font-size: 12px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; }
+.kalem-table select.tanimsiz { border-color: var(--warn); color: var(--warn); font-weight: 600; }
+.fatura-detay h4 { margin: 16px 0 6px; }
+.detay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 18px; }
+
 </style>
 </head>
 <body>
@@ -412,9 +421,12 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 
 </script>
   <script>/* js/fields.js */
-/* Fatura alan tanımları. Veriler sayfası, yükleme önizlemesi ve CSV dışa aktarımı bu listeyi kullanır.
-   type: text | date | month | num ; dec: ondalık hane ; calc: hesaplanan (salt okunur) alan ;
-   check: kontrol alanı — sonuç |değer| <= tol ise "tamam" sayılır. */
+/* Standart fatura özeti alanları. Her tedarikçinin faturası bu alanlara indirgenir; Veriler sayfası,
+   yükleme önizlemesi ve CSV dışa aktarımı bu listeyi kullanır.
+   Bedel alanları (enerji, dağıtım, diğer, mahsup, BTV, KDV) fatura kalemlerinin kategori toplamlarıdır (bkz. kalemler.js).
+   Faturadan okunan diğer bilgiler (endeksler, demand, reaktif, yıllık tüketim ...) kayıtta "detay" altında saklanır.
+   type: text | date | month | num ; dec: ondalık hane ; calc: hesaplanan (salt okunur) ;
+   hidden: saklanır ve eşleştirme/uyarılarda kullanılır, tabloda gösterilmez ; check: kontrol alanı. */
 (function (root) {
   'use strict';
 
@@ -426,193 +438,74 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
   }
   function diff(a, b) { return n(a) !== null && n(b) !== null ? a - b : null; }
   function ratio(a, b) { return n(a) !== null && n(b) ? a / b : null; }
-  function endeks(r, ilk, son) {
-    return n(r[ilk]) !== null && n(r[son]) !== null && n(r.carpan) ? (r[son] - r[ilk]) * r.carpan : null;
-  }
-  function ekKwh(r) { return sum(r.ekT1Kwh, r.ekT2Kwh, r.ekT3Kwh, r.ekTekKwh); }
-  function ekTutar(r) { return sum(r.ekT1Tutar, r.ekT2Tutar, r.ekT3Tutar, r.ekTekTutar); }
-  function matrah(r) {
-    return sum(r.enerjiToplam, r.skbToplam, r.digerToplam, r.btv, r.enerjiFonu, r.trtPayi);
-  }
+  function kdvHaric(r) { return sum(r.enerjiBedeli, r.mahsupTL, r.dagitimBedeli, r.digerBedeller, r.btv); }
 
   var GROUPS = [
     { id: 'genel', label: 'Genel' },
-    { id: 'endeks', label: 'Endeksler' },
     { id: 'tuketim', label: 'Tüketim' },
-    { id: 'enerji', label: 'Tüketim (Enerji) Bedelleri' },
-    { id: 'mahsup', label: 'GES Mahsup / Ek Tüketim' },
-    { id: 'skb', label: 'Sistem Kullanım Bedelleri' },
-    { id: 'diger', label: 'Diğer Tutarlar' },
-    { id: 'vergi', label: 'Vergi ve Fonlar' },
-    { id: 'toplam', label: 'Fatura Toplamı' },
+    { id: 'bedel', label: 'Bedeller' },
+    { id: 'mahsup', label: 'GES Mahsup' },
+    { id: 'vergi', label: 'Vergi ve Toplam' },
     { id: 'kontrol', label: 'Hesaplanan / Kontrol' }
   ];
 
   var FIELDS = [
     // Genel
     { key: 'donem', label: 'Dönem', group: 'genel', type: 'month', w: 80 },
-    { key: 'bicim', label: 'Fatura Biçimi', group: 'genel', type: 'text', w: 90 },
     { key: 'faturaNo', label: 'Fatura No', group: 'genel', type: 'text', w: 140 },
     { key: 'faturaTarihi', label: 'Fatura Tarihi', group: 'genel', type: 'date', w: 90 },
-    { key: 'sonOdemeTarihi', label: 'Son Ödeme Tarihi', group: 'genel', type: 'date', w: 90 },
     { key: 'tedarikci', label: 'Tedarikçi', group: 'genel', type: 'text', w: 180 },
-    { key: 'tuketiciGrubu', label: 'Tüketici Grubu', group: 'genel', type: 'text', w: 130 },
-    { key: 'eic', label: 'EIC Kodu', group: 'genel', type: 'text', w: 130 },
-    { key: 'sozlesmeNo', label: 'Sözleşme / Hesap No', group: 'genel', type: 'text', w: 140 },
-    { key: 'tesisatNo', label: 'Tesisat No', group: 'genel', type: 'text', w: 100 },
-    { key: 'ilkOkuma', label: 'İlk Okuma', group: 'genel', type: 'date', w: 90 },
-    { key: 'sonOkuma', label: 'Son Okuma', group: 'genel', type: 'date', w: 90 },
     { key: 'gunSayisi', label: 'Gün Sayısı', unit: 'gün', group: 'genel', type: 'num', dec: 0, w: 70 },
-    { key: 'carpan', label: 'Çarpan', group: 'genel', type: 'num', dec: 0, w: 70 },
-    { key: 'demand', label: 'Demand (endeks)', group: 'genel', type: 'num', dec: 3 },
-    { key: 'anlasmaGucu', label: 'Anlaşma Gücü', unit: 'kW', group: 'genel', type: 'num', dec: 0 },
 
-    // Endeksler
-    { key: 'aktifIlk', label: 'Aktif İlk', group: 'endeks', type: 'num', dec: 3 },
-    { key: 'aktifSon', label: 'Aktif Son', group: 'endeks', type: 'num', dec: 3 },
-    { key: 't1Ilk', label: 'Gündüz İlk', group: 'endeks', type: 'num', dec: 3 },
-    { key: 't1Son', label: 'Gündüz Son', group: 'endeks', type: 'num', dec: 3 },
-    { key: 't2Ilk', label: 'Puant İlk', group: 'endeks', type: 'num', dec: 3 },
-    { key: 't2Son', label: 'Puant Son', group: 'endeks', type: 'num', dec: 3 },
-    { key: 't3Ilk', label: 'Gece İlk', group: 'endeks', type: 'num', dec: 3 },
-    { key: 't3Son', label: 'Gece Son', group: 'endeks', type: 'num', dec: 3 },
-    { key: 'endIlk', label: 'Endüktif İlk', group: 'endeks', type: 'num', dec: 3 },
-    { key: 'endSon', label: 'Endüktif Son', group: 'endeks', type: 'num', dec: 3 },
-    { key: 'kapIlk', label: 'Kapasitif İlk', group: 'endeks', type: 'num', dec: 3 },
-    { key: 'kapSon', label: 'Kapasitif Son', group: 'endeks', type: 'num', dec: 3 },
-
-    // Tüketim
-    { key: 'aktifKwh', label: 'Aktif Tüketim', unit: 'kWh', group: 'tuketim', type: 'num', dec: 3 },
+    // Tüketim (sayaçtan okunan, şebekeden çekilen)
+    { key: 'aktifKwh', label: 'Çekilen Enerji', unit: 'kWh', group: 'tuketim', type: 'num', dec: 3 },
     { key: 't1Kwh', label: 'Gündüz (T1)', unit: 'kWh', group: 'tuketim', type: 'num', dec: 3 },
     { key: 't2Kwh', label: 'Puant (T2)', unit: 'kWh', group: 'tuketim', type: 'num', dec: 3 },
     { key: 't3Kwh', label: 'Gece (T3)', unit: 'kWh', group: 'tuketim', type: 'num', dec: 3 },
-    { key: 'enduktifKvarh', label: 'Endüktif (faturada)', unit: 'kVArh', group: 'tuketim', type: 'num', dec: 3 },
-    { key: 'kapasitifKvarh', label: 'Kapasitif (faturada)', unit: 'kVArh', group: 'tuketim', type: 'num', dec: 3 },
 
-    // Enerji bedelleri
-    { key: 't1FatKwh', label: 'Gündüz Faturalanan', unit: 'kWh', group: 'enerji', type: 'num', dec: 3 },
-    { key: 't2FatKwh', label: 'Puant Faturalanan', unit: 'kWh', group: 'enerji', type: 'num', dec: 3 },
-    { key: 't3FatKwh', label: 'Gece Faturalanan', unit: 'kWh', group: 'enerji', type: 'num', dec: 3 },
-    { key: 't1Birim', label: 'Gündüz Birim Fiyat', unit: 'TL/kWh', group: 'enerji', type: 'num', dec: 6 },
-    { key: 't2Birim', label: 'Puant Birim Fiyat', unit: 'TL/kWh', group: 'enerji', type: 'num', dec: 6 },
-    { key: 't3Birim', label: 'Gece Birim Fiyat', unit: 'TL/kWh', group: 'enerji', type: 'num', dec: 6 },
-    { key: 't1Tutar', label: 'Gündüz Tutar', unit: 'TL', group: 'enerji', type: 'num' },
-    { key: 't2Tutar', label: 'Puant Tutar', unit: 'TL', group: 'enerji', type: 'num' },
-    { key: 't3Tutar', label: 'Gece Tutar', unit: 'TL', group: 'enerji', type: 'num' },
-    { key: 'tekKwh', label: 'Tek Zamanlı / Diğer Enerji', unit: 'kWh', group: 'enerji', type: 'num', dec: 3 },
-    { key: 'tekBirim', label: 'Tek Zamanlı Birim Fiyat', unit: 'TL/kWh', group: 'enerji', type: 'num', dec: 6 },
-    { key: 'tekTutar', label: 'Tek Zamanlı / Diğer Tutar', unit: 'TL', group: 'enerji', type: 'num' },
-    { key: 'enerjiToplam', label: 'Enerji Bedelleri Toplamı', unit: 'TL', group: 'enerji', type: 'num' },
+    // Bedeller (kalem toplamları)
+    { key: 'enerjiBedeli', label: 'Enerji Bedeli (mahsup öncesi)', unit: 'TL', group: 'bedel', type: 'num' },
+    { key: 'dagitimBedeli', label: 'Dağıtım Bedeli', unit: 'TL', group: 'bedel', type: 'num' },
+    { key: 'digerBedeller', label: 'Diğer Bedeller', unit: 'TL', group: 'bedel', type: 'num' },
 
-    // GES mahsup / ek tüketim (negatif kWh: üretimden mahsup edilen enerji)
-    { key: 'ekT1Kwh', label: 'Gündüz Ek Tüketim (Mahsup)', unit: 'kWh', group: 'mahsup', type: 'num', dec: 3 },
-    { key: 'ekT1Birim', label: 'Gündüz Ek Tük. Birim', unit: 'TL/kWh', group: 'mahsup', type: 'num', dec: 6 },
-    { key: 'ekT1Tutar', label: 'Gündüz Ek Tük. Tutar', unit: 'TL', group: 'mahsup', type: 'num' },
-    { key: 'ekT2Kwh', label: 'Puant Ek Tüketim (Mahsup)', unit: 'kWh', group: 'mahsup', type: 'num', dec: 3 },
-    { key: 'ekT2Birim', label: 'Puant Ek Tük. Birim', unit: 'TL/kWh', group: 'mahsup', type: 'num', dec: 6 },
-    { key: 'ekT2Tutar', label: 'Puant Ek Tük. Tutar', unit: 'TL', group: 'mahsup', type: 'num' },
-    { key: 'ekT3Kwh', label: 'Gece Ek Tüketim (Mahsup)', unit: 'kWh', group: 'mahsup', type: 'num', dec: 3 },
-    { key: 'ekT3Birim', label: 'Gece Ek Tük. Birim', unit: 'TL/kWh', group: 'mahsup', type: 'num', dec: 6 },
-    { key: 'ekT3Tutar', label: 'Gece Ek Tük. Tutar', unit: 'TL', group: 'mahsup', type: 'num' },
-    { key: 'ekTekKwh', label: 'Ek/Eksik Tüketim (zamansız)', unit: 'kWh', group: 'mahsup', type: 'num', dec: 3 },
-    { key: 'ekTekBirim', label: 'Ek/Eksik Tük. Birim', unit: 'TL/kWh', group: 'mahsup', type: 'num', dec: 6 },
-    { key: 'ekTekTutar', label: 'Ek/Eksik Tük. Tutar', unit: 'TL', group: 'mahsup', type: 'num' },
-    { key: 'c_ekKwh', label: 'Ek Tüketim Toplamı', unit: 'kWh', group: 'mahsup', type: 'num', dec: 3, calc: ekKwh },
-    { key: 'c_ekTutar', label: 'Ek Tüketim Tutarı Toplamı', unit: 'TL', group: 'mahsup', type: 'num', calc: ekTutar },
-    { key: 'c_ekBirim', label: 'Ek Tüketim Ort. Birim', unit: 'TL/kWh', group: 'mahsup', type: 'num', dec: 6,
-      calc: function (r) { return ratio(ekTutar(r), ekKwh(r)); } },
-    { key: 'c_netKwh', label: 'Net Faturalanan Enerji (Aktif + Ek)', unit: 'kWh', group: 'mahsup', type: 'num', dec: 3,
-      calc: function (r) { var e = ekKwh(r); return n(r.aktifKwh) !== null ? r.aktifKwh + (e || 0) : null; } },
-    { key: 'c_mahsupTL', label: 'Mahsup/İndirim Toplamı (Ek Tük. + GES Diğer)', unit: 'TL', group: 'mahsup', type: 'num',
-      calc: function (r) { return sum(ekTutar(r), /ges|mahsup/i.test(r.digerAciklama || '') ? r.digerTutar : null); } },
+    // GES mahsup
+    { key: 'mahsupKwh', label: 'GES Mahsubu', unit: 'kWh', group: 'mahsup', type: 'num', dec: 3 },
+    { key: 'mahsupTL', label: 'GES Mahsubu / İndirim', unit: 'TL', group: 'mahsup', type: 'num' },
 
-    // Sistem kullanım
-    { key: 'dagitimMiktar', label: 'Dağıtım Miktarı', unit: 'MWh', group: 'skb', type: 'num', dec: 3 },
-    { key: 'dagitimBirim', label: 'Dağıtım Birim Fiyat', unit: 'TL/MWh', group: 'skb', type: 'num', dec: 3 },
-    { key: 'dagitimTutar', label: 'Dağıtım Bedeli', unit: 'TL', group: 'skb', type: 'num' },
-    { key: 'gucMiktar', label: 'Güç (Sözleşme Gücü)', unit: 'kW', group: 'skb', type: 'num', dec: 3 },
-    { key: 'gucBirim', label: 'Güç Birim Fiyat', unit: 'TL/kW', group: 'skb', type: 'num', dec: 3 },
-    { key: 'gucTutar', label: 'Güç Bedeli', unit: 'TL', group: 'skb', type: 'num' },
-    { key: 'reaktifTutar', label: 'Reaktif Bedeli', unit: 'TL', group: 'skb', type: 'num' },
-    { key: 'gucAsimTutar', label: 'Güç Aşım Bedeli', unit: 'TL', group: 'skb', type: 'num' },
-    { key: 'skbToplam', label: 'Sistem Kullanım Toplamı', unit: 'TL', group: 'skb', type: 'num' },
-
-    // Diğer
-    { key: 'digerTutar', label: 'Diğer Bedel (Mahsup vb.)', unit: 'TL', group: 'diger', type: 'num' },
-    { key: 'digerAciklama', label: 'Diğer Bedel Açıklaması', group: 'diger', type: 'text', w: 260 },
-    { key: 'oncekiYuvarlama', label: 'Önceki Yuvarlama', unit: 'TL', group: 'diger', type: 'num' },
-    { key: 'guncelYuvarlama', label: 'Güncel Yuvarlama', unit: 'TL', group: 'diger', type: 'num' },
-    { key: 'kesmeBaglama', label: 'Kesme-Bağlama', unit: 'TL', group: 'diger', type: 'num' },
-    { key: 'tenzilBedeli', label: 'Tenzil Bedeli', unit: 'TL', group: 'diger', type: 'num' },
-    { key: 'muhtelifBedel', label: 'Muhtelif Bedel', unit: 'TL', group: 'diger', type: 'num' },
-    { key: 'digerToplam', label: 'Diğer Tutarlar Toplamı', unit: 'TL', group: 'diger', type: 'num' },
-    { key: 'bilgilendirme', label: 'Faturadaki Bilgilendirme Notu', group: 'diger', type: 'text', w: 320 },
-
-    // Vergiler
-    { key: 'enerjiFonu', label: 'Enerji Fonu', unit: 'TL', group: 'vergi', type: 'num' },
-    { key: 'trtPayi', label: 'TRT Fon Payı', unit: 'TL', group: 'vergi', type: 'num' },
-    { key: 'btv', label: 'Belediye Tüketim Vergisi', unit: 'TL', group: 'vergi', type: 'num' },
-    { key: 'kdvMatrah', label: 'KDV Matrahı (faturada)', unit: 'TL', group: 'vergi', type: 'num' },
-    { key: 'kdvOrani', label: 'KDV Oranı', unit: '%', group: 'vergi', type: 'num', dec: 0 },
+    // Vergi ve toplam
+    { key: 'btv', label: 'BTV', unit: 'TL', group: 'vergi', type: 'num' },
     { key: 'kdv', label: 'KDV', unit: 'TL', group: 'vergi', type: 'num' },
-    { key: 'vergiToplam', label: 'Vergiler Toplamı', unit: 'TL', group: 'vergi', type: 'num' },
+    { key: 'faturaTutari', label: 'Fatura Tutarı', unit: 'TL', group: 'vergi', type: 'num' },
 
-    // Toplam
-    { key: 'kdvDisiTutar', label: 'KDV Dışı Tutar (önceki yuvarlama vb.)', unit: 'TL', group: 'toplam', type: 'num' },
-    { key: 'faturaTutari', label: 'Fatura Tutarı', unit: 'TL', group: 'toplam', type: 'num' },
-    { key: 'odenecekTutar', label: 'Ödenecek Tutar', unit: 'TL', group: 'toplam', type: 'num' },
-    { key: 'ortGunlukKwh', label: 'Ort. Günlük Tüketim', unit: 'kWh/gün', group: 'toplam', type: 'num', dec: 3 },
-    { key: 'gecmisYilKwh', label: 'Geçmiş Yıl Tüketim', unit: 'kWh', group: 'toplam', type: 'num', dec: 3 },
-    { key: 'cariYilKwh', label: 'Cari Yıl Tüketim', unit: 'kWh', group: 'toplam', type: 'num', dec: 3 },
+    // Arka planda tutulanlar (eşleştirme ve uyarılar için)
+    { key: 'bicim', label: 'Fatura Biçimi', group: 'genel', type: 'text', hidden: true },
+    { key: 'eic', label: 'EIC Kodu', group: 'genel', type: 'text', hidden: true },
+    { key: 'sozlesmeNo', label: 'Sözleşme / Hesap No', group: 'genel', type: 'text', hidden: true },
+    { key: 'tesisatNo', label: 'Tesisat No', group: 'genel', type: 'text', hidden: true },
+    { key: 'tuketiciGrubu', label: 'Tüketici Grubu', group: 'genel', type: 'text', hidden: true },
+    { key: 'ilkOkuma', label: 'İlk Okuma', group: 'genel', type: 'date', hidden: true },
+    { key: 'sonOkuma', label: 'Son Okuma', group: 'genel', type: 'date', hidden: true },
+    { key: 'kdvOrani', label: 'KDV Oranı', unit: '%', group: 'vergi', type: 'num', dec: 0, hidden: true },
+    { key: 'bilgilendirme', label: 'Faturadaki Bilgilendirme Notu', group: 'genel', type: 'text', hidden: true },
 
     // Hesaplanan / kontrol
-    { key: 'c_fatFark', label: 'Faturalanan − Okunan Enerji', unit: 'kWh', group: 'kontrol', type: 'num', dec: 3,
-      calc: function (r) { return diff(sum(r.t1FatKwh, r.t2FatKwh, r.t3FatKwh, r.tekKwh), r.aktifKwh); } },
-    { key: 'c_endeksAktif', label: 'Aktif (Endeks×Çarpan)', unit: 'kWh', group: 'kontrol', type: 'num', dec: 3,
-      calc: function (r) { return endeks(r, 'aktifIlk', 'aktifSon'); } },
-    { key: 'k_endeks', label: 'Kontrol: Endeks − Aktif', unit: 'kWh', group: 'kontrol', type: 'num', dec: 3, check: true, tol: 1,
-      calc: function (r) { return diff(endeks(r, 'aktifIlk', 'aktifSon'), r.aktifKwh); } },
-    { key: 'k_zaman', label: 'Kontrol: T1+T2+T3 − Aktif', unit: 'kWh', group: 'kontrol', type: 'num', dec: 3, check: true, tol: 1,
+    { key: 'c_netKwh', label: 'Net Enerji (Çekilen + Mahsup)', unit: 'kWh', group: 'kontrol', type: 'num', dec: 3,
+      calc: function (r) { return n(r.aktifKwh) !== null ? r.aktifKwh + (n(r.mahsupKwh) || 0) : null; } },
+    { key: 'c_enerjiBirim', label: 'Enerji Birim Fiyatı', unit: 'TL/kWh', group: 'kontrol', type: 'num', dec: 6,
+      calc: function (r) { return ratio(r.enerjiBedeli, r.aktifKwh); } },
+    { key: 'c_mahsupBirim', label: 'Mahsup Birim Fiyatı', unit: 'TL/kWh', group: 'kontrol', type: 'num', dec: 6,
+      calc: function (r) { return ratio(r.mahsupTL, r.mahsupKwh); } },
+    { key: 'c_dagitimBirim', label: 'Dağıtım Bedeli / Çekilen Enerji', unit: 'TL/kWh', group: 'kontrol', type: 'num', dec: 6,
+      calc: function (r) { return ratio(r.dagitimBedeli, r.aktifKwh); } },
+    { key: 'c_kdvHaric', label: 'KDV Hariç Toplam', unit: 'TL', group: 'kontrol', type: 'num', calc: kdvHaric },
+    { key: 'c_netBirim', label: 'Net Maliyet (KDV hariç) / Çekilen', unit: 'TL/kWh', group: 'kontrol', type: 'num', dec: 6,
+      calc: function (r) { return ratio(kdvHaric(r), r.aktifKwh); } },
+    { key: 'k_zaman', label: 'Kontrol: T1+T2+T3 − Çekilen', unit: 'kWh', group: 'kontrol', type: 'num', dec: 3, check: true, tol: 1,
       calc: function (r) { return diff(sum(r.t1Kwh, r.t2Kwh, r.t3Kwh), r.aktifKwh); } },
-    { key: 'c_enduktif', label: 'Endüktif (Endeks×Çarpan)', unit: 'kVArh', group: 'kontrol', type: 'num', dec: 3,
-      calc: function (r) { return endeks(r, 'endIlk', 'endSon'); } },
-    { key: 'c_enduktifOran', label: 'Endüktif / Aktif', unit: '%', group: 'kontrol', type: 'num', dec: 2,
-      calc: function (r) { var v = ratio(endeks(r, 'endIlk', 'endSon'), r.aktifKwh); return v === null ? null : v * 100; } },
-    { key: 'c_kapasitif', label: 'Kapasitif (Endeks×Çarpan)', unit: 'kVArh', group: 'kontrol', type: 'num', dec: 3,
-      calc: function (r) { return endeks(r, 'kapIlk', 'kapSon'); } },
-    { key: 'c_kapasitifOran', label: 'Kapasitif / Aktif', unit: '%', group: 'kontrol', type: 'num', dec: 2,
-      calc: function (r) { var v = ratio(endeks(r, 'kapIlk', 'kapSon'), r.aktifKwh); return v === null ? null : v * 100; } },
-    { key: 'c_efektifBirim', label: 'Efektif Enerji Birim Fiyatı', unit: 'TL/kWh', group: 'kontrol', type: 'num', dec: 6,
-      calc: function (r) { return ratio(r.enerjiToplam, r.aktifKwh); } },
-    { key: 'k_enerji', label: 'Kontrol: Kalemler − Enerji Toplamı', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 0.05,
-      calc: function (r) { return diff(sum(r.t1Tutar, r.t2Tutar, r.t3Tutar, r.tekTutar, ekTutar(r)), r.enerjiToplam); } },
-    { key: 'k_dagitim', label: 'Kontrol: Miktar×Birim − Dağıtım', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 1,
-      // Birim fiyat faturada 3 haneye yuvarlandığı için tolerans miktarla büyür
-      tolFn: function (r) { return Math.max(1, (r.dagitimMiktar || 0) * 0.0005 + 0.01); },
-      calc: function (r) { return n(r.dagitimMiktar) !== null && n(r.dagitimBirim) !== null ? r.dagitimMiktar * r.dagitimBirim - r.dagitimTutar : null; } },
-    { key: 'c_dagitimKwh', label: 'Dağıtım Bedeli / Aktif Tüketim', unit: 'TL/kWh', group: 'kontrol', type: 'num', dec: 6,
-      calc: function (r) { return ratio(r.dagitimTutar, r.aktifKwh); } },
-    { key: 'c_demandKw', label: 'Demand (Endeks×Çarpan)', unit: 'kW', group: 'kontrol', type: 'num', dec: 0,
-      calc: function (r) { return n(r.demand) !== null && n(r.carpan) ? r.demand * r.carpan : null; } },
-    { key: 'c_btvOran', label: 'BTV / Enerji Bedeli', unit: '%', group: 'kontrol', type: 'num', dec: 3,
-      calc: function (r) { var v = ratio(r.btv, r.enerjiToplam); return v === null ? null : v * 100; } },
-    { key: 'k_vergi', label: 'Kontrol: Fon+BTV+KDV − Vergi Toplamı', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 0.05,
-      calc: function (r) { return diff(sum(r.enerjiFonu, r.trtPayi, r.btv, r.kdv), r.vergiToplam); } },
-    { key: 'c_matrah', label: 'KDV Matrahı (hesap)', unit: 'TL', group: 'kontrol', type: 'num', calc: matrah },
-    { key: 'k_matrah', label: 'Kontrol: Hesap Matrah − Faturadaki Matrah', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 0.05,
-      calc: function (r) { return diff(matrah(r), r.kdvMatrah); } },
-    { key: 'k_kdv', label: 'Kontrol: Matrah×Oran − KDV', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 0.05,
-      calc: function (r) { var m = matrah(r); return m !== null && n(r.kdvOrani) !== null && n(r.kdv) !== null ? m * r.kdvOrani / 100 - r.kdv : null; } },
-    { key: 'k_toplam', label: 'Kontrol: Matrah+KDV − Fatura', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 0.05,
-      calc: function (r) { var m = matrah(r); return m !== null && n(r.faturaTutari) !== null ? m + (r.kdv || 0) + (r.kdvDisiTutar || 0) - r.faturaTutari : null; } },
-    { key: 'k_odenecek', label: 'Kontrol: Fatura + Güncel Yuv. − Ödenecek', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 0.05,
-      calc: function (r) { return n(r.odenecekTutar) !== null && n(r.faturaTutari) !== null ? r.faturaTutari + (r.guncelYuvarlama || 0) - r.odenecekTutar : null; } },
-    { key: 'c_kwhMaliyet', label: 'Ort. Toplam Maliyet (KDV dahil)', unit: 'TL/kWh', group: 'kontrol', type: 'num', dec: 4,
-      calc: function (r) { return ratio(r.faturaTutari, r.aktifKwh); } },
-    { key: 'c_ortGunluk', label: 'Ort. Günlük Tüketim (hesap)', unit: 'kWh/gün', group: 'kontrol', type: 'num', dec: 3,
-      calc: function (r) { return ratio(r.aktifKwh, r.gunSayisi); } },
-    { key: 'c_limit2x', label: 'Bedelli Üretim Limiti (2×Geçmiş Yıl)', unit: 'kWh', group: 'kontrol', type: 'num', dec: 0,
-      calc: function (r) { return n(r.gecmisYilKwh) !== null ? r.gecmisYilKwh * 2 : null; } }
+    { key: 'k_toplam', label: 'Kontrol: Kalemler + KDV − Fatura Tutarı', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 0.05,
+      calc: function (r) { var k = kdvHaric(r); return k !== null && n(r.faturaTutari) !== null ? k + (n(r.kdv) || 0) - r.faturaTutari : null; } },
+    { key: 'k_kdv', label: 'Kontrol: KDV Hariç × Oran − KDV', unit: 'TL', group: 'kontrol', type: 'num', check: true, tol: 1,
+      calc: function (r) { var k = kdvHaric(r); return k !== null && n(r.kdv) !== null ? k * (n(r.kdvOrani) || 20) / 100 - r.kdv : null; } }
   ];
 
   var byKey = {};
@@ -634,9 +527,170 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     return Math.abs(value) <= tol ? 'ok' : 'err';
   }
 
-  var api = { GROUPS: GROUPS, FIELDS: FIELDS, byKey: byKey, compute: compute, checkStatus: checkStatus };
+  // Kayıt sistem alanları: standart alan değildir ama korunur
+  var SYSTEM_KEYS = { id: 1, tuketimTesisId: 1, abonelikId: 1, kaynak: 1, duzeltilen: 1, olusturma: 1, guncelleme: 1, kalemler: 1, detay: 1 };
+
+  // Kalem listesinde zaten bulunan tutar alanları detay'a yazılmaz
+  var KALEMDE_OLAN = /^(t[123]|tek|ekT[123]|ekTek)(Tutar|Birim|FatKwh|Kwh)$|^(dagitim|guc)(Tutar|Miktar|Birim)$|^(reaktifTutar|gucAsimTutar|digerTutar|digerToplam|digerAciklama|muhtelifBedel|kesmeBaglama|tenzilBedeli|oncekiYuvarlama|guncelYuvarlama|enerjiFonu|trtPayi|enerjiToplam|skbToplam|kdvDisiTutar|enerjiBedeli|dagitimBedeli|digerBedeller|mahsupKwh|mahsupTL)$/;
+
+  // Ayrıştırıcı (veya eski sürüm) kaydını standart alanlar + detay olarak ayırır; standart olmayan bilgiler detay'a gider.
+  function split(raw) {
+    var out = { detay: Object.assign({}, raw.detay || {}) };
+    Object.keys(raw).forEach(function (k) {
+      if (k === 'detay') return;
+      if (SYSTEM_KEYS[k]) out[k] = raw[k];
+      else if (byKey[k] && !byKey[k].calc) out[k] = raw[k];
+      else if (!KALEMDE_OLAN.test(k) && raw[k] !== undefined && raw[k] !== null && raw[k] !== '') out.detay[k] = raw[k];
+    });
+    return out;
+  }
+
+  // Detay anahtarlarının okunur adları
+  var DETAY_ADLARI = {
+    aktifIlk: 'Aktif ilk endeks', aktifSon: 'Aktif son endeks', t1Ilk: 'Gündüz ilk endeks', t1Son: 'Gündüz son endeks',
+    t2Ilk: 'Puant ilk endeks', t2Son: 'Puant son endeks', t3Ilk: 'Gece ilk endeks', t3Son: 'Gece son endeks',
+    endIlk: 'Endüktif ilk endeks', endSon: 'Endüktif son endeks', kapIlk: 'Kapasitif ilk endeks', kapSon: 'Kapasitif son endeks',
+    enduktifKvarh: 'Endüktif (kVArh)', kapasitifKvarh: 'Kapasitif (kVArh)', carpan: 'Çarpan', demand: 'Demand (endeks)',
+    anlasmaGucu: 'Anlaşma gücü (kW)', gecmisYilKwh: 'Geçmiş yıl tüketim (kWh)', cariYilKwh: 'Cari yıl tüketim (kWh)',
+    ortGunlukKwh: 'Ort. günlük tüketim (kWh)', sonOdemeTarihi: 'Son ödeme tarihi', odenecekTutar: 'Ödenecek tutar (TL)',
+    kdvMatrah: 'KDV matrahı (faturada, TL)', vergiToplam: 'Vergiler toplamı (TL)'
+  };
+
+  var api = { GROUPS: GROUPS, FIELDS: FIELDS, byKey: byKey, compute: compute, checkStatus: checkStatus, split: split, SYSTEM_KEYS: SYSTEM_KEYS, DETAY_ADLARI: DETAY_ADLARI };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else { root.App = root.App || {}; root.App.fields = api; }
+})(this);
+
+</script>
+  <script>/* js/kalemler.js */
+/* Fatura kalemleri ve kalem eşleştirme sözlüğü.
+   Her fatura, faturada yazdığı adıyla bir kalem listesi taşır: { ad, miktar, miktarBirimi, birim, tutar }.
+   Kalemler bir kategoriye eşlenir; standart özet alanları (enerji bedeli, dağıtım, mahsup, BTV, KDV ...)
+   kategorilerin toplamıdır. Böylece farklı tedarikçilerin farklı adlandırdığı kalemler aynı sütunlarda toplanır.
+
+   Eşleştirme sırası: kullanıcı sözlüğü (biçime özel) → kullanıcı sözlüğü (genel) → varsayılan kurallar → 'tanimsiz'. */
+(function (root) {
+  'use strict';
+
+  var KATEGORILER = [
+    { id: 'enerji', label: 'Enerji bedeli', alan: 'enerjiBedeli' },
+    { id: 'mahsup', label: 'GES mahsubu / indirim', alan: 'mahsupTL' },
+    { id: 'dagitim', label: 'Dağıtım bedeli', alan: 'dagitimBedeli' },
+    { id: 'diger', label: 'Diğer bedeller', alan: 'digerBedeller' },
+    { id: 'btv', label: 'BTV', alan: 'btv' },
+    { id: 'kdv', label: 'KDV', alan: 'kdv' },
+    { id: 'yoksay', label: 'Toplama katma (bilgi amaçlı)', alan: null }
+  ];
+  var byId = {};
+  KATEGORILER.forEach(function (k) { byId[k.id] = k; });
+
+  // Varsayılan kurallar: sıra önemli (ilk eşleşen kazanır). bicim verilirse yalnız o biçimde geçerli.
+  var KURALLAR = [
+    { re: /ek ?t[üu]ketim|eksik ?t[üu]ketim/, k: 'mahsup' },
+    { re: /\bges\b|mahsup/, k: 'mahsup' },
+    { re: /g[üu]ncel yuvarlama/, k: 'yoksay', bicim: 'ckbogazici' }, // Boğaziçi: ödenecek tutara eklenir, fatura tutarına değil
+    { re: /^enerji bedeli|^(g[üu]nd[üu]z|puant|gece|tek zaman(l[ıi])?) t[üu]ketim bedeli$|sktt/, k: 'enerji' },
+    { re: /^da[ğg][ıi]t[ıi]m bedeli/, k: 'dagitim' },
+    { re: /belediye t[üu]ketim|elekt.*ver|\bbtv\b/, k: 'btv' },
+    { re: /^kdv/, k: 'kdv' },
+    { re: /g[üu][çc] bedeli|reaktif|g[üu][çc] a[şs][ıi]m|yuvarlama|muhtelif|kesme|tenzil|gecikme|enerji fonu|trt/, k: 'diger' }
+  ];
+
+  // Eşleştirme anahtarı: küçük harf, sayı/noktalama temizlenmiş ad ("KDV (Matrah 1.063.661,37)" → "kdv matrah")
+  function norm(ad) {
+    return String(ad || '').toLocaleLowerCase('tr-TR')
+      .replace(/[\d.,%#:]+/g, ' ').replace(/[()\-/]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function key(bicim, ad) { return (bicim || 'genel') + '|' + norm(ad); }
+
+  function varsayilan(ad, bicim) {
+    var n = norm(ad);
+    for (var i = 0; i < KURALLAR.length; i++) {
+      var r = KURALLAR[i];
+      if (r.bicim && r.bicim !== bicim) continue;
+      if (r.re.test(n)) return r.k;
+    }
+    return null;
+  }
+
+  // userMap: { 'bicim|ad': kategori, '*|ad': kategori }
+  function resolve(ad, bicim, userMap) {
+    userMap = userMap || {};
+    var n = norm(ad);
+    var u = userMap[(bicim || 'genel') + '|' + n] || userMap['*|' + n];
+    if (u) return { kategori: u, kaynak: 'kullanici' };
+    var v = varsayilan(ad, bicim);
+    if (v) return { kategori: v, kaynak: 'varsayilan' };
+    return { kategori: 'tanimsiz', kaynak: 'yok' };
+  }
+
+  function r2(x) { return Math.round(x * 100) / 100; }
+
+  // Kalemlerden standart özet alanlarını hesaplar. Elle düzeltilmiş alanlara dokunmaz.
+  function applySummary(rec, userMap) {
+    var kalemler = rec.kalemler || [];
+    var top = {}, tanimsiz = [];
+    var mahsupKwh = 0, mahsupKwhVar = false;
+    kalemler.forEach(function (k) {
+      var res = resolve(k.ad, rec.bicim, userMap);
+      k.kategori = res.kategori;
+      var kat = res.kategori === 'tanimsiz' ? 'diger' : res.kategori; // tanımsızlar onaylanana kadar "diğer"e eklenir
+      if (res.kategori === 'tanimsiz') tanimsiz.push(k.ad);
+      if (kat === 'yoksay') return;
+      var alan = byId[kat].alan;
+      if (typeof k.tutar === 'number') top[alan] = (top[alan] || 0) + k.tutar;
+      if (kat === 'mahsup' && typeof k.miktar === 'number' && k.miktarBirimi === 'kWh') { mahsupKwh += k.miktar; mahsupKwhVar = true; }
+    });
+    var duz = rec.duzeltilen || {};
+    KATEGORILER.forEach(function (k) {
+      if (!k.alan || duz[k.alan]) return;
+      rec[k.alan] = top[k.alan] === undefined ? null : r2(top[k.alan]);
+    });
+    if (!duz.mahsupKwh) rec.mahsupKwh = mahsupKwhVar ? Math.round(mahsupKwh * 1000) / 1000 : null;
+    return { tanimsiz: tanimsiz };
+  }
+
+  // Sürüm 2 kayıtlarındaki ayrıntılı alanlardan kalem listesi üretir (geçiş için).
+  function fromLegacy(r) {
+    var k = [];
+    function add(ad, tutar, miktar, miktarBirimi, birim) {
+      if (typeof tutar !== 'number' && typeof miktar !== 'number') return;
+      if (!tutar && !miktar) return;
+      k.push({ ad: ad, miktar: typeof miktar === 'number' ? miktar : null, miktarBirimi: typeof miktar === 'number' ? (miktarBirimi || null) : null, birim: typeof birim === 'number' ? birim : null, tutar: typeof tutar === 'number' ? tutar : null });
+    }
+    var bog = r.bicim === 'ckbogazici';
+    [['t1', 'Gündüz'], ['t2', 'Puant'], ['t3', 'Gece']].forEach(function (z) {
+      add(bog ? 'Enerji Bedeli-' + z[1] : z[1] + ' (Tüketim Bedeli)', r[z[0] + 'Tutar'], r[z[0] + 'FatKwh'] !== undefined ? r[z[0] + 'FatKwh'] : r[z[0] + 'Kwh'], 'kWh', r[z[0] + 'Birim']);
+    });
+    add(bog ? 'Enerji Bedeli' : 'Tek Zamanlı (Tüketim Bedeli)', r.tekTutar, r.tekKwh, 'kWh', r.tekBirim);
+    [['ekT1', 'Enerji Bedeli-Gündüz(Ek Tüketim)'], ['ekT2', 'Enerji Bedeli-Puant(Ek Tüketim)'], ['ekT3', 'Enerji Bedeli-Gece(Ek Tüketim)'],
+     ['ekTek', bog ? 'Enerji Bedeli(Ek Tüketim)' : 'Ek/Eksik Tüketim']].forEach(function (z) {
+      add(z[1], r[z[0] + 'Tutar'], r[z[0] + 'Kwh'], 'kWh', r[z[0] + 'Birim']);
+    });
+    add('Dağıtım Bedeli', r.dagitimTutar, r.dagitimMiktar, 'MWh', r.dagitimBirim);
+    add('Güç Bedeli', r.gucTutar, r.gucMiktar, 'kW', r.gucBirim);
+    add('Reaktif Bedeli', r.reaktifTutar);
+    add('Güç Aşım Bedeli', r.gucAsimTutar);
+    if (bog) {
+      if (typeof r.digerToplam === 'number' && r.digerToplam) add(r.digerAciklama || 'Diğer Bedel', r.digerToplam);
+    } else {
+      add(r.digerAciklama || 'Diğer Bedel', r.digerTutar);
+      add('Muhtelif Bedel', r.muhtelifBedel);
+      add('Kesme-Bağlama', r.kesmeBaglama);
+      add('Tenzil Bedeli', r.tenzilBedeli);
+    }
+    add('Önceki Yuvarlama', r.oncekiYuvarlama);
+    add('Güncel Yuvarlama', r.guncelYuvarlama);
+    add('Enerji Fonu', r.enerjiFonu);
+    add('TRT Fon Payı', r.trtPayi);
+    add(bog ? 'Elekt Ver. Hvgz Tük. Ver' : 'Belediye Tüketim Vergisi', r.btv);
+    add('KDV', r.kdv);
+    return k;
+  }
+
+  var api = { KATEGORILER: KATEGORILER, byId: byId, norm: norm, key: key, resolve: resolve, varsayilan: varsayilan, applySummary: applySummary, fromLegacy: fromLegacy };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else { root.App = root.App || {}; root.App.kalemler = api; }
 })(this);
 
 </script>
@@ -652,7 +706,10 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 (function (root) {
   'use strict';
 
-  var U = (typeof require !== 'undefined' && typeof module !== 'undefined') ? require('./util.js') : root.App.util;
+  var NODE = typeof require !== 'undefined' && typeof module !== 'undefined';
+  var U = NODE ? require('./util.js') : root.App.util;
+  var F = NODE ? require('./fields.js') : root.App.fields;
+  var K = NODE ? require('./kalemler.js') : root.App.kalemler;
   var numTR = U.parseTRNumber;
   var norm = U.normalizeLabel;
 
@@ -753,7 +810,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
   // ---------------------------------------------------------------------------------------------
   function parse(items, width) {
     var d = new Doc(items, width);
-    var ctx = { d: d, r: {}, meta: {}, warnings: [], found: 0 };
+    var ctx = { d: d, r: {}, meta: {}, warnings: [], found: 0, kalemler: [] };
     ctx.set = function (key, value) {
       if (value !== null && value !== undefined && value !== '' && !(typeof value === 'number' && isNaN(value))) { ctx.r[key] = value; ctx.found++; }
     };
@@ -762,7 +819,13 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     parseCommonHeader(ctx);
     if (bicim === 'ckbogazici') parseBogazici(ctx); else parseCKEnerji(ctx);
     finish(ctx);
-    return { record: ctx.r, meta: ctx.meta, warnings: ctx.warnings, found: ctx.found, lines: d.all.map(function (l) { return l.text; }) };
+    // Boğaziçi kalemleri satır satır toplandı; CK Enerji kalemleri ayrıştırılmış alanlardan, faturadaki adlarıyla kurulur
+    var kalemler = bicim === 'ckbogazici' ? ctx.kalemler : K.fromLegacy(ctx.r);
+    var rec = F.split(ctx.r);
+    rec.kalemler = kalemler;
+    var sum = K.applySummary(rec, null);
+    if (sum.tanimsiz.length) ctx.warnings.push('Tanınmayan kalem: ' + sum.tanimsiz.join(', ') + ' — kategorisini seçin (şimdilik "Diğer bedeller"e eklendi).');
+    return { record: rec, meta: ctx.meta, warnings: ctx.warnings, found: ctx.found, lines: d.all.map(function (l) { return l.text; }) };
   }
 
   function parseCommonHeader(ctx) {
@@ -1054,7 +1117,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
       var prev = kalemler[kalemler.length - 1];
       var near = prev && l.y - prev.y < 9;
       if (label && !numParts.length) {
-        if (near && prev.nums.length && (prev.label.split('(').length > prev.label.split(')').length)) { prev.label += label; prev.y = l.y; return; }
+        if (near && prev.nums.length && (prev.label.split('(').length > prev.label.split(')').length)) { prev.label += ' ' + label; prev.y = l.y; return; }
         kalemler.push({ label: label, nums: [], y: l.y });
       } else if (!label && numParts.length) {
         if (near && !prev.nums.length) { prev.nums = numParts; prev.y = l.y; }
@@ -1065,6 +1128,9 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     });
 
     var enerjiSatirlari = [], digerSatirlari = [], toplamEnerjiYazili = null;
+    function kalem(ad, miktar, miktarBirimi, birim, tutar) {
+      ctx.kalemler.push({ ad: ad, miktar: miktar, miktarBirimi: miktar === null ? null : miktarBirimi, birim: birim, tutar: tutar });
+    }
     var digerToplam = 0, digerVar = false;
     kalemler.forEach(function (k) {
       var lab = k.label;
@@ -1074,31 +1140,34 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
         var ek = /Ek\s*Tüketim|Eksik/i.test(lab);
         var kwh = n.length >= 3 ? numTR(n[0]) : null, birim = n.length >= 3 ? numTR(n[1]) : null, tutar = n.length ? numTR(n[n.length - 1]) : null;
         enerjiSatirlari.push({ zone: zone, ek: ek, kwh: kwh, birim: birim, tutar: tutar, aciklama: lab });
+        kalem(lab, kwh, 'kWh', birim, tutar);
       } else if (/^Toplam Enerji Bedeli/i.test(lab)) {
         if (n.length) toplamEnerjiYazili = numDot(n[0]);
       } else if (/^Dağıtım Bedeli/i.test(lab)) {
         if (n.length) set('dagitimTutar', numTR(n[n.length - 1]));
         if (n.length >= 3) { set('dagitimMiktar', numTR(n[0]) / 1000); set('dagitimBirim', numTR(n[1]) * 1000); }
+        if (n.length) kalem(lab, n.length >= 3 ? numTR(n[0]) : null, 'kWh', n.length >= 3 ? numTR(n[1]) : null, numTR(n[n.length - 1]));
       } else if (/^Güncel Yuvarlama/i.test(lab)) {
-        if (n.length) set('guncelYuvarlama', numDot(n[0]));
+        if (n.length) { set('guncelYuvarlama', numDot(n[0])); kalem(lab, null, null, null, numDot(n[0])); }
       } else if (/^Önceki Yuvarlama/i.test(lab)) {
-        if (n.length) set('oncekiYuvarlama', numDot(n[0]));
+        if (n.length) { set('oncekiYuvarlama', numDot(n[0])); kalem(lab, null, null, null, numDot(n[0])); }
       } else if (/^Vergi ve Fonlar/i.test(lab)) {
         if (n.length) set('vergiToplam', numDot(n[0]));
       } else if (/^Elekt\.?\s*Ver|Tük\.?\s*Ver|Belediye Tüketim/i.test(lab)) {
-        if (n.length) set('btv', numTR(n[n.length - 1]));
+        if (n.length) { set('btv', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^Enerji Fonu/i.test(lab)) {
-        if (n.length) set('enerjiFonu', numTR(n[n.length - 1]));
+        if (n.length) { set('enerjiFonu', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^TRT/i.test(lab)) {
-        if (n.length) set('trtPayi', numTR(n[n.length - 1]));
+        if (n.length) { set('trtPayi', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^KDV/i.test(lab)) {
         var mm = lab.match(/Matrah\s*([-\d.,]+)/i);
         if (mm) set('kdvMatrah', numTR(mm[1]));
-        if (n.length) set('kdv', numTR(n[n.length - 1]));
+        if (n.length) { set('kdv', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^Fatura Tutarı/i.test(lab)) {
         if (n.length) set('faturaTutari', numTR(n[0]));
       } else if (n.length && lab && kalemler.indexOf(k) >= 0 && k.y < (d.findLine('right', /^Fatura Tutarı/i) || { y: 1e9 }).y) {
         digerSatirlari.push(lab + ': ' + n[n.length - 1]);
+        kalem(lab, n.length >= 3 ? numTR(n[0]) : null, n.length >= 3 ? 'kWh' : null, n.length >= 3 ? numTR(n[1]) : null, numTR(n[n.length - 1]));
         digerToplam += numTR(n[n.length - 1]) || 0;
         digerVar = true;
       }
@@ -1231,7 +1300,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
   var listeners = [];
 
   function empty() {
-    return { version: 2, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [] };
+    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {} };
   }
 
   // Eksik koleksiyonları ekler; sürüm numarasına dokunmaz (eski veri sürüm 1 sayılır).
@@ -1279,6 +1348,24 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     d.version = 2;
   }
 
+  // Sürüm 3: faturalar standart özet + kalem listesi + detay yapısına çevrilir (eski ayrıntılı alanlardan kalem üretilir).
+  function migrateV3(d) {
+    if ((d.version || 1) >= 3) return;
+    var K = root.App.kalemler, F = root.App.fields;
+    d.faturalar = d.faturalar.map(function (f) {
+      var kalemler = f.kalemler || K.fromLegacy(f);
+      var duz = f.duzeltilen;
+      var rec = F.split(f);
+      rec.kalemler = kalemler;
+      rec.duzeltilen = {};
+      // Eski elle düzeltmeler yalnız standart alanlarda anlamlı
+      if (duz) Object.keys(duz).forEach(function (k) { if (F.byKey[k] && !F.byKey[k].calc && ['enerjiBedeli', 'dagitimBedeli', 'digerBedeller', 'mahsupTL', 'mahsupKwh'].indexOf(k) < 0) rec.duzeltilen[k] = true; });
+      K.applySummary(rec, d.kalemEslestirme);
+      return rec;
+    });
+    d.version = 3;
+  }
+
   // Eski sürüm alan adlarını yenilerine taşır.
   function migrate(d) {
     migrateV2(d);
@@ -1290,6 +1377,10 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
       ['t1', 't2', 't3'].forEach(function (z) {
         if (f[z + 'FatKwh'] === undefined && f[z + 'Tutar'] !== undefined && f[z + 'Kwh'] !== undefined) f[z + 'FatKwh'] = f[z + 'Kwh'];
       });
+    });
+    migrateV3(d);
+    d.faturalar.forEach(function (f) {
+      (f.kalemler || []).forEach(function (k) { if (typeof k.miktar !== 'number') k.miktarBirimi = null; });
     });
   }
 
@@ -1387,6 +1478,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
   }
   function faturaSave(f, silent) {
     f.guncelleme = new Date().toISOString();
+    if (f.kalemler) root.App.kalemler.applySummary(f, db.kalemEslestirme);
     if (!f.id) { f.id = U.uid('ft'); f.olusturma = f.guncelleme; db.faturalar.push(f); }
     else {
       var i = db.faturalar.findIndex(function (x) { return x.id === f.id; });
@@ -1398,6 +1490,37 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
   function faturaDelete(id) {
     db.faturalar = db.faturalar.filter(function (f) { return f.id !== id; });
     save();
+  }
+
+  // --- Kalem eşleştirme sözlüğü
+  function eslestirme() { return db.kalemEslestirme; }
+  // kategori null ise kullanıcı kaydı silinir (varsayılana döner)
+  function eslestirmeSet(bicim, ad, kategori, silent) {
+    var K = root.App.kalemler;
+    var k = K.key(bicim, ad);
+    if (!kategori || kategori === K.varsayilan(ad, bicim)) delete db.kalemEslestirme[k];
+    else db.kalemEslestirme[k] = kategori;
+    recomputeAll(silent);
+  }
+  // Sözlük değişince tüm faturaların özetini yeniden hesaplar (elle düzeltilen alanlara dokunmaz)
+  function recomputeAll(silent) {
+    var K = root.App.kalemler;
+    db.faturalar.forEach(function (f) { if (f.kalemler) K.applySummary(f, db.kalemEslestirme); });
+    if (!silent) save();
+  }
+  // Kayıtlı faturalarda geçen tüm kalem adları (biçim bazında), örnek tutar ve sayı ile
+  function kalemAdlari() {
+    var K = root.App.kalemler, map = {};
+    db.faturalar.forEach(function (f) {
+      (f.kalemler || []).forEach(function (k) {
+        var key = K.key(f.bicim, k.ad);
+        if (!map[key]) map[key] = { bicim: f.bicim || 'genel', ad: k.ad, adet: 0, toplam: 0 };
+        map[key].adet++;
+        map[key].toplam += k.tutar || 0;
+      });
+    });
+    return Object.keys(map).map(function (k) { return map[k]; })
+      .sort(function (a, b) { return a.bicim.localeCompare(b.bicim) || a.ad.localeCompare(b.ad, 'tr'); });
   }
 
   // --- Yedekleme
@@ -1413,6 +1536,8 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
         db[k].forEach(function (x) { ids[x.id] = true; });
         (d[k] || []).forEach(function (x) { if (!ids[x.id]) db[k].push(x); });
       });
+      Object.keys(d.kalemEslestirme || {}).forEach(function (k) { if (!db.kalemEslestirme[k]) db.kalemEslestirme[k] = d.kalemEslestirme[k]; });
+      recomputeAll(true);
     } else {
       migrate(d);
       db = d;
@@ -1430,6 +1555,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     abonelikList: abonelikList, abonelikGet: abonelikGet, abonelikSave: abonelikSave, abonelikDelete: abonelikDelete, abonelikMatch: abonelikMatch,
     uretimList: uretimList, uretimGet: uretimGet, uretimSave: uretimSave, uretimDelete: uretimDelete,
     faturaList: faturaList, faturaGet: faturaGet, faturaSave: faturaSave, faturaDelete: faturaDelete, faturaFindDuplicate: faturaFindDuplicate,
+    eslestirme: eslestirme, eslestirmeSet: eslestirmeSet, recomputeAll: recomputeAll, kalemAdlari: kalemAdlari,
     exportJSON: exportJSON, importJSON: importJSON, stats: stats
   };
 })(this);
@@ -1577,6 +1703,120 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
   });
 
   root.App.ui = { el: el, toast: toast, openModal: openModal, closeModal: closeModal, formModal: formModal, confirmModal: confirmModal };
+})(this);
+
+</script>
+  <script>/* js/kalem-ui.js */
+/* Kalem arayüzü: kalem tablosu (kategori seçimli), Kalem Eşleştirme penceresi ve fatura detay penceresi. */
+(function (root) {
+  'use strict';
+  var App = root.App, U = App.util, S = App.store, UI = App.ui, K = App.kalemler, F = App.fields;
+
+  function katSelect(selected, withTanimsiz) {
+    var opts = K.KATEGORILER.map(function (k) {
+      return '<option value="' + k.id + '"' + (k.id === selected ? ' selected' : '') + '>' + U.escapeHtml(k.label) + '</option>';
+    }).join('');
+    if (withTanimsiz) opts = '<option value="tanimsiz"' + (selected === 'tanimsiz' ? ' selected' : '') + '>— Seçin (tanınmadı) —</option>' + opts;
+    return '<select class="kat-sel' + (selected === 'tanimsiz' ? ' tanimsiz' : '') + '">' + opts + '</select>';
+  }
+
+  function fmt(v, d) { return typeof v === 'number' ? U.formatTRNumber(v, d === undefined ? 2 : d) : ''; }
+
+  /* Faturanın kalem listesini tablo olarak çizer. Kategori değişince sözlüğe kaydedilir ve onChange çağrılır. */
+  function kalemTable(rec, onChange) {
+    var wrap = UI.el('div', { class: 'table-wrap' });
+    var rows = (rec.kalemler || []).map(function (k, i) {
+      var res = K.resolve(k.ad, rec.bicim, S.eslestirme());
+      return '<tr data-i="' + i + '" class="' + (res.kategori === 'tanimsiz' ? 'tanimsiz' : '') + '">' +
+        '<td>' + U.escapeHtml(k.ad) + '</td>' +
+        '<td class="num">' + fmt(k.miktar, 3) + (typeof k.miktar === 'number' && k.miktarBirimi ? ' <i class="muted">' + U.escapeHtml(k.miktarBirimi) + '</i>' : '') + '</td>' +
+        '<td class="num">' + fmt(k.birim, 6) + '</td>' +
+        '<td class="num">' + fmt(k.tutar) + '</td>' +
+        '<td>' + katSelect(res.kategori, true) + (res.kaynak === 'kullanici' ? ' <span class="muted" title="Sizin eşleştirmeniz">●</span>' : '') + '</td></tr>';
+    }).join('');
+    wrap.innerHTML = '<table class="table kalem-table"><thead><tr><th>Kalem (faturadaki adı)</th><th class="num">Miktar</th><th class="num">Birim Fiyat</th><th class="num">Tutar (TL)</th><th>Kategori</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="5" class="muted">Kalem yok.</td></tr>') + '</tbody></table>';
+    wrap.addEventListener('change', function (e) {
+      var sel = e.target.closest('select.kat-sel');
+      if (!sel) return;
+      var k = rec.kalemler[+sel.closest('tr').dataset.i];
+      S.eslestirmeSet(rec.bicim, k.ad, sel.value === 'tanimsiz' ? null : sel.value);
+      UI.toast('"' + k.ad + '" → ' + (K.byId[sel.value] ? K.byId[sel.value].label : 'tanımsız') + ' olarak kaydedildi; tüm faturalarda uygulandı.', 'ok');
+      if (onChange) onChange();
+    });
+    return wrap;
+  }
+
+  /* Kayıtlı faturalarda geçen tüm kalem adlarını listeler; kategorileri toplu düzenletir. */
+  function openEslestirme(extraKalemler) {
+    var list = S.kalemAdlari();
+    (extraKalemler || []).forEach(function (x) {
+      if (!list.some(function (y) { return K.key(y.bicim, y.ad) === K.key(x.bicim, x.ad); })) list.push({ bicim: x.bicim || 'genel', ad: x.ad, adet: 0, toplam: x.tutar || 0 });
+    });
+    var body = UI.el('div', { class: 'eslestirme' });
+    body.appendChild(UI.el('p', { class: 'muted' },
+      'Faturalardaki her kalem bir kategoriye bağlanır; Veriler tablosundaki Enerji / Dağıtım / Diğer / Mahsup / BTV / KDV sütunları bu kategorilerin toplamıdır. ' +
+      'Aynı ad farklı tedarikçilerde farklı anlama gelebileceği için eşleştirme fatura biçimi bazındadır. ● işaretli satırlar sizin seçiminizdir.'));
+    var tbl = UI.el('div', { class: 'table-wrap' });
+    tbl.innerHTML = '<table class="table kalem-table"><thead><tr><th>Biçim</th><th>Kalem</th><th class="num">Fatura</th><th class="num">Toplam Tutar</th><th>Kategori</th><th></th></tr></thead><tbody>' +
+      list.map(function (x, i) {
+        var res = K.resolve(x.ad, x.bicim, S.eslestirme());
+        return '<tr data-i="' + i + '" class="' + (res.kategori === 'tanimsiz' ? 'tanimsiz' : '') + '"><td>' + U.escapeHtml(x.bicim) + '</td><td>' + U.escapeHtml(x.ad) + '</td>' +
+          '<td class="num">' + x.adet + '</td><td class="num">' + fmt(x.toplam) + '</td><td>' + katSelect(res.kategori, true) + '</td>' +
+          '<td>' + (res.kaynak === 'kullanici' ? '<span title="Sizin eşleştirmeniz">●</span>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    body.appendChild(tbl);
+    UI.openModal('Kalem Eşleştirme', body, [
+      { label: 'Vazgeç', onclick: UI.closeModal },
+      { label: 'Kaydet ve uygula', class: 'primary', onclick: function () {
+        var n = 0;
+        tbl.querySelectorAll('tbody tr').forEach(function (tr) {
+          var x = list[+tr.dataset.i], v = tr.querySelector('select').value;
+          var cur = K.resolve(x.ad, x.bicim, S.eslestirme()).kategori;
+          if (v !== cur) { S.eslestirmeSet(x.bicim, x.ad, v === 'tanimsiz' ? null : v, true); n++; }
+        });
+        S.recomputeAll();
+        UI.closeModal();
+        UI.toast(n ? n + ' eşleştirme güncellendi; tüm faturalar yeniden hesaplandı.' : 'Değişiklik yok.', 'ok');
+      } }
+    ]);
+    var box = document.querySelector('.modal-box');
+    if (box) box.classList.add('wide');
+  }
+
+  /* Bir faturanın kalemlerini, detay bilgilerini ve bilgilendirme notunu gösterir. */
+  function openFaturaDetay(rec) {
+    var body = UI.el('div', { class: 'fatura-detay' });
+    var ab = rec.abonelikId ? S.abonelikGet(rec.abonelikId) : null;
+    body.appendChild(UI.el('p', null, '<b>' + U.escapeHtml(U.donemLabel(rec.donem)) + '</b> · ' + U.escapeHtml(rec.faturaNo || '') + ' · ' +
+      U.escapeHtml(rec.tedarikci || '') + (ab ? ' · ' + U.escapeHtml(ab.ad) : '') +
+      (rec.ilkOkuma ? ' · okuma ' + U.formatTRDate(rec.ilkOkuma) + ' – ' + U.formatTRDate(rec.sonOkuma) : '')));
+    body.appendChild(UI.el('h4', null, 'Kalemler'));
+    body.appendChild(kalemTable(rec, function () {
+      UI.closeModal();
+      openFaturaDetay(S.faturaGet(rec.id) || rec);
+    }));
+    var d = rec.detay || {};
+    var keys = Object.keys(d);
+    if (keys.length) {
+      body.appendChild(UI.el('h4', null, 'Faturadaki diğer bilgiler'));
+      body.appendChild(UI.el('div', { class: 'detay-grid' }, keys.map(function (k) {
+        var v = d[k];
+        var ondalik = typeof v === 'number' ? Math.min(3, (String(v).split('.')[1] || '').length) : 0;
+        var txt = typeof v === 'number' ? U.formatTRNumber(v, ondalik) : /^\d{4}-\d{2}-\d{2}$/.test(v) ? U.formatTRDate(v) : typeof v === 'object' ? JSON.stringify(v) : String(v);
+        return '<div class="kv"><span>' + U.escapeHtml(F.DETAY_ADLARI[k] || k) + '</span><b>' + U.escapeHtml(txt) + '</b></div>';
+      }).join('')));
+    }
+    if (rec.bilgilendirme) {
+      body.appendChild(UI.el('h4', null, 'Bilgilendirme notu'));
+      body.appendChild(UI.el('p', { class: 'note' }, U.escapeHtml(rec.bilgilendirme)));
+    }
+    UI.openModal('Fatura Detayı', body, [{ label: 'Kapat', onclick: UI.closeModal }]);
+    var box = document.querySelector('.modal-box');
+    if (box) box.classList.add('wide');
+  }
+
+  App.kalemUI = { kalemTable: kalemTable, openEslestirme: openEslestirme, openFaturaDetay: openFaturaDetay };
 })(this);
 
 </script>
@@ -1880,7 +2120,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
    Eşleştirme faturadaki EIC / sözleşme no / tesisat no ile aboneliğe yapılır. */
 (function (root) {
   'use strict';
-  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser;
+  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser, K = App.kalemler;
 
   var queue = []; // {id, file, name, status, result, record, abId, error}
   var hedef = 'auto';
@@ -1907,6 +2147,11 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     bar.appendChild(sel);
     if (queue.length) {
       bar.appendChild(UI.el('button', { class: 'btn primary sm', onclick: saveAll }, 'Hazır olanların tümünü kaydet'));
+      bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () {
+        var extra = [];
+        queue.forEach(function (q) { if (q.record) (q.record.kalemler || []).forEach(function (k) { extra.push({ bicim: q.record.bicim, ad: k.ad, tutar: k.tutar }); }); });
+        App.kalemUI.openEslestirme(extra);
+      } }, 'Kalem Eşleştirme'));
       bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { queue = []; render(container); } }, 'Listeyi temizle'));
     }
     page.appendChild(bar);
@@ -2058,12 +2303,21 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
       [['Abone', m.musteriAdi], ['VKN', m.vkn], ['Vergi Dairesi', m.vergiDairesi], ['Adres', m.adres], ['Tedarikçi VKN', m.tedarikciVkn], ['Sayaç', m.sayac], ['ETTN', m.ettn]]
         .filter(function (x) { return x[1]; }).map(function (x) { return '<span><i>' + x[0] + ':</i> ' + U.escapeHtml(x[1]) + '</span>'; }).join('')));
 
-    // Alan önizleme / düzeltme
+    // Kalemler: kategorisi tanınmayan varsa açık gelir
+    var tanimsizVar = (r.kalemler || []).some(function (k) { return K.resolve(k.ad, r.bicim, S.eslestirme()).kategori === 'tanimsiz'; });
+    var kdet = UI.el('details', { class: 'preview' });
+    if (tanimsizVar) kdet.open = true;
+    kdet.appendChild(UI.el('summary', null, 'Fatura kalemleri (' + (r.kalemler || []).length + ')' + (tanimsizVar ? ' — tanınmayan kalem var, kategorisini seçin' : '')));
+    kdet.appendChild(App.kalemUI.kalemTable(r, reapplyAll));
+    c.appendChild(kdet);
+
+    // Standart özet önizleme / düzeltme
     var det = UI.el('details', { class: 'preview' });
-    det.appendChild(UI.el('summary', null, 'Okunan değerleri göster / düzelt'));
+    det.appendChild(UI.el('summary', null, 'Standart özeti göster / düzelt'));
     var grid = UI.el('div', { class: 'preview-grid' });
     F.GROUPS.forEach(function (g) {
-      var fs = F.FIELDS.filter(function (f) { return f.group === g.id; });
+      var fs = F.FIELDS.filter(function (f) { return f.group === g.id && !f.hidden; });
+      if (!fs.length) return;
       var sec = UI.el('div', { class: 'pg-group' }, '<h5>' + U.escapeHtml(g.label) + '</h5>');
       fs.forEach(function (f) {
         var v = f.calc ? calc[f.key] : r[f.key];
@@ -2074,7 +2328,11 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
           row.appendChild(UI.el('b', { class: st || '' }, v === null || v === undefined ? '—' : U.formatTRNumber(v, f.dec === undefined ? 2 : f.dec)));
         } else {
           var inp = UI.el('input', { type: 'text', value: displayValue(f, v) });
-          inp.onchange = function () { r[f.key] = parseValue(f, inp.value); renderQueue(); };
+          inp.onchange = function () {
+            r[f.key] = parseValue(f, inp.value);
+            r.duzeltilen = r.duzeltilen || {}; r.duzeltilen[f.key] = true; // kalem toplamı bu alanın üzerine yazmasın
+            renderQueue();
+          };
           row.appendChild(inp);
         }
         sec.appendChild(row);
@@ -2095,6 +2353,20 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     foot.appendChild(saveBtn);
     c.appendChild(foot);
     return c;
+  }
+
+  // Eşleştirme değişince bekleyen faturaların özetini de yeniden hesapla
+  function reapplyAll() {
+    queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); });
+    renderQueue();
+  }
+  S.onChange(function () { if (queue.length) queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); }); });
+
+  function detay(r) { return r.detay || {}; }
+  // Sözleşme gücü faturada "Güç Bedeli" kaleminin miktarı (kW) olarak yazar
+  function sozlesmeGucu(r) {
+    var k = (r.kalemler || []).find(function (x) { return /^g[üu][çc] bedeli/i.test(x.ad) && x.miktarBirimi === 'kW'; });
+    return k && k.miktar ? k.miktar : (detay(r).anlasmaGucu || null);
   }
 
   function displayValue(f, v) {
@@ -2124,11 +2396,11 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     // Abonelik kartındaki boş alanları faturadan tamamla
     var changed = false;
     [['eic', rec.eic], ['sozlesmeNo', rec.sozlesmeNo], ['tedarikci', rec.tedarikci], ['tuketiciGrubuFatura', rec.tuketiciGrubu],
-     ['carpan', rec.carpan], ['sozlesmeGucu', rec.gucMiktar]].forEach(function (p) {
+     ['carpan', detay(rec).carpan], ['sozlesmeGucu', sozlesmeGucu(rec)]].forEach(function (p) {
       if ((t[p[0]] === undefined || t[p[0]] === null || t[p[0]] === '') && p[1] !== undefined && p[1] !== null) { t[p[0]] = p[1]; changed = true; }
     });
-    if (rec.gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
-      t.oncekiYilTuketim = rec.gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
+    if (detay(rec).gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
+      t.oncekiYilTuketim = detay(rec).gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
     }
     if (changed) S.abonelikSave(t);
     q.status = 'kaydedildi';
@@ -2168,7 +2440,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
       tarifeZaman: /Tek Zaman/i.test(grup) ? 'Tek Zamanlı' : /Üç Zaman/i.test(grup) || r.t2Kwh || r.t3Kwh ? 'Üç Zamanlı' : '',
       serbestTuketici: /toptan|ortakl/i.test(r.tedarikci || '') ? 'Evet' : '',
       tedarikci: r.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic, sozlesmeNo: r.sozlesmeNo, tesisatNo: r.tesisatNo,
-      sozlesmeGucu: r.gucMiktar, carpan: r.carpan, oncekiYilTuketim: r.gecmisYilKwh, oncekiYilTuketimDonem: r.donem
+      sozlesmeGucu: sozlesmeGucu(r), carpan: detay(r).carpan, oncekiYilTuketim: detay(r).gecmisYilKwh || null, oncekiYilTuketimDonem: r.donem
     };
     App.pages.tesisler.editAbonelik(null, null, prefill, function (a) {
       q.abId = a.id;
@@ -2227,7 +2499,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     state.records = state.allRecords.filter(function (r) { return !prefs.hiddenRecs[r.id]; });
     state.calc = state.records.map(function (r) { return F.compute(r); });
     state.notes = recordNotes(state.records);
-    state.allFields = F.FIELDS.filter(function (f) { return !prefs.hidden[f.group]; });
+    state.allFields = F.FIELDS.filter(function (f) { return !f.hidden && !prefs.hidden[f.group]; });
     state.fields = state.allFields.filter(function (f) { return !prefs.hiddenFields[f.key]; });
     state.gapFields = gaps(state.allFields, function (f) { return prefs.hiddenFields[f.key]; }, function (f) { return f.key; });
     state.gapRecs = gaps(state.allRecords, function (r) { return prefs.hiddenRecs[r.id]; }, function (r) { return r.id; });
@@ -2416,6 +2688,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     var hc = hiddenCounts();
     bar.appendChild(UI.el('button', { class: 'btn sm' + (hc.fields + hc.recs ? ' has-hidden' : ''), title: 'Satır ve sütunları gizle / göster', onclick: manageHidden },
       '👁 Gizle / Göster' + (hc.fields + hc.recs ? ' <b>(' + (hc.fields ? hc.fields + ' alan' : '') + (hc.fields && hc.recs ? ', ' : '') + (hc.recs ? hc.recs + ' fatura' : '') + ' gizli)</b>' : '')));
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { App.kalemUI.openEslestirme(); }, title: 'Fatura kalemlerinin hangi sütunda toplanacağını belirleyin' }, 'Kalem Eşleştirme'));
     bar.appendChild(UI.el('button', { class: 'btn sm', onclick: exportCSV, title: 'Görünen satır ve sütunları indirir' }, 'CSV (Excel) indir'));
     bar.appendChild(UI.el('a', { class: 'btn sm', href: '#/yukle' + (state.ab !== 'tum' ? '?ab=' + state.ab : '') }, 'Fatura Yükle'));
     page.appendChild(bar);
@@ -2751,7 +3024,11 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
       if (td) { state.sel = { r: +td.dataset.r, c: +td.dataset.c }; paintSelection(); }
     });
     document.addEventListener('mouseup', function () { dragging = false; });
-    g.addEventListener('dblclick', function (e) { if (e.target.closest('td[data-r]')) startEdit(); });
+    g.addEventListener('dblclick', function (e) {
+      if (e.target.closest('td[data-r]')) { startEdit(); return; }
+      var ri = recordIndexFromHeader(e.target);
+      if (ri !== null) App.kalemUI.openFaturaDetay(state.records[ri]);
+    });
     g.addEventListener('contextmenu', function (e) {
       var td = e.target.closest('td[data-r]'), rh = e.target.closest('th.rowh[data-r]'), ch = e.target.closest('th.colh[data-c]');
       if (!td && !rh && !ch) return;
@@ -2884,6 +3161,13 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     });
   }
 
+  // Fatura başlığından kayıt sırası (aylar sütundayken sütun başlığı, satırdayken satır başlığı)
+  function recordIndexFromHeader(t) {
+    var th = prefs.orient === 'cols' ? t.closest('th.colh[data-c]') : t.closest('th.rowh[data-r]');
+    if (!th) return null;
+    return prefs.orient === 'cols' ? +th.dataset.c : +th.dataset.r;
+  }
+
   // --- Bağlam menüsü
   function closeMenu() { var m = document.getElementById('ctxmenu'); if (m) m.remove(); }
   function showMenu(x, y, what) {
@@ -2899,6 +3183,8 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     items.push({ label: 'Gizli sütunları göster' + (colHidden ? ' (' + colHidden + ')' : ''), key: 'Ctrl+Shift+0', disabled: !colHidden, fn: function () { unhideAxis('col'); } });
     items.push(null);
     items.push({ label: 'Gizle / Göster penceresi…', fn: manageHidden });
+    var ref = cellRef(state.sel.r, state.sel.c);
+    if (state.records[ref.ri]) items.push({ label: 'Fatura detayı ve kalemleri…', fn: function () { App.kalemUI.openFaturaDetay(state.records[ref.ri]); } });
     var m = UI.el('div', { class: 'ctxmenu', id: 'ctxmenu', role: 'menu' });
     items.forEach(function (it) {
       if (!it) { m.appendChild(UI.el('div', { class: 'ctx-sep' })); return; }
@@ -2930,7 +3216,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
     fBox.appendChild(fTools);
     var fList = UI.el('div', { class: 'hm-list' });
     F.GROUPS.forEach(function (g) {
-      var fs = F.FIELDS.filter(function (f) { return f.group === g.id; });
+      var fs = F.FIELDS.filter(function (f) { return f.group === g.id && !f.hidden; });
       if (!fs.length) return;
       var gl = UI.el('label', { class: 'hm-group' + (prefs.hidden[g.id] ? ' off' : '') }, '<input type="checkbox" data-group="' + g.id + '"> ' + U.escapeHtml(g.label) + (prefs.hidden[g.id] ? ' <i>(grup kapalı)</i>' : ''));
       fList.appendChild(gl);

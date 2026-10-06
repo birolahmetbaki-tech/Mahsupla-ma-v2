@@ -27,14 +27,15 @@ const fields = require('../js/fields.js');
     const errs = st.filter(x => x.s === 'err');
     fail += errs.length;
     if (asJson) { console.log(JSON.stringify({ sayfa: inv.pageFrom, record: r, meta: res.meta, warnings: res.warnings }, null, 2)); continue; }
-    const ek = (calc.c_ekKwh || 0);
+    const f = (v, d) => U.formatTRNumber(v, d === undefined ? 2 : d);
     console.log(
       `s.${String(inv.pageFrom).padStart(2)}-${String(inv.pageTo).padEnd(2)} ${r.bicim.padEnd(10)} ${String(r.faturaNo).padEnd(17)} ${r.donem} ` +
-      `aktif=${U.formatTRNumber(r.aktifKwh, 0).padStart(10)} ek=${U.formatTRNumber(ek, 0).padStart(11)} ` +
-      `enerji=${U.formatTRNumber(r.enerjiToplam).padStart(14)} fatura=${U.formatTRNumber(r.faturaTutari).padStart(14)} ` +
+      `çekiş=${f(r.aktifKwh, 0).padStart(10)} enerji=${f(r.enerjiBedeli).padStart(13)} dağıtım=${f(r.dagitimBedeli).padStart(12)} ` +
+      `diğer=${f(r.digerBedeller).padStart(10)} mahsup=${f(r.mahsupKwh, 0).padStart(11)} kWh/${f(r.mahsupTL).padStart(14)} ` +
+      `btv=${f(r.btv).padStart(10)} fatura=${f(r.faturaTutari).padStart(14)} ` +
       `alan=${res.found} kontrol=${st.filter(x => x.s === 'ok').length}/${st.filter(x => x.s).length}` +
       (errs.length ? '  HATA: ' + errs.map(x => x.f.label.replace('Kontrol: ', '') + '=' + U.formatTRNumber(x.v, 2)).join(', ') : ''));
-    res.warnings.filter(w => !/Endüktif endeks|Kapasitif endeks|GES mahsubu/.test(w)).forEach(w => console.log('        ! ' + w));
+    res.warnings.filter(w => /Tanınmayan/.test(w)).forEach(w => console.log('        ! ' + w));
   }
   console.log(`${invoices.length} fatura, ${fail} kontrol hatası`);
   process.exit(fail ? 1 : 0);

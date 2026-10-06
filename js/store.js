@@ -8,7 +8,7 @@
   var listeners = [];
 
   function empty() {
-    return { version: 2, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [] };
+    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {} };
   }
 
   // Eksik koleksiyonları ekler; sürüm numarasına dokunmaz (eski veri sürüm 1 sayılır).
@@ -56,6 +56,24 @@
     d.version = 2;
   }
 
+  // Sürüm 3: faturalar standart özet + kalem listesi + detay yapısına çevrilir (eski ayrıntılı alanlardan kalem üretilir).
+  function migrateV3(d) {
+    if ((d.version || 1) >= 3) return;
+    var K = root.App.kalemler, F = root.App.fields;
+    d.faturalar = d.faturalar.map(function (f) {
+      var kalemler = f.kalemler || K.fromLegacy(f);
+      var duz = f.duzeltilen;
+      var rec = F.split(f);
+      rec.kalemler = kalemler;
+      rec.duzeltilen = {};
+      // Eski elle düzeltmeler yalnız standart alanlarda anlamlı
+      if (duz) Object.keys(duz).forEach(function (k) { if (F.byKey[k] && !F.byKey[k].calc && ['enerjiBedeli', 'dagitimBedeli', 'digerBedeller', 'mahsupTL', 'mahsupKwh'].indexOf(k) < 0) rec.duzeltilen[k] = true; });
+      K.applySummary(rec, d.kalemEslestirme);
+      return rec;
+    });
+    d.version = 3;
+  }
+
   // Eski sürüm alan adlarını yenilerine taşır.
   function migrate(d) {
     migrateV2(d);
@@ -67,6 +85,10 @@
       ['t1', 't2', 't3'].forEach(function (z) {
         if (f[z + 'FatKwh'] === undefined && f[z + 'Tutar'] !== undefined && f[z + 'Kwh'] !== undefined) f[z + 'FatKwh'] = f[z + 'Kwh'];
       });
+    });
+    migrateV3(d);
+    d.faturalar.forEach(function (f) {
+      (f.kalemler || []).forEach(function (k) { if (typeof k.miktar !== 'number') k.miktarBirimi = null; });
     });
   }
 
@@ -164,6 +186,7 @@
   }
   function faturaSave(f, silent) {
     f.guncelleme = new Date().toISOString();
+    if (f.kalemler) root.App.kalemler.applySummary(f, db.kalemEslestirme);
     if (!f.id) { f.id = U.uid('ft'); f.olusturma = f.guncelleme; db.faturalar.push(f); }
     else {
       var i = db.faturalar.findIndex(function (x) { return x.id === f.id; });
@@ -175,6 +198,37 @@
   function faturaDelete(id) {
     db.faturalar = db.faturalar.filter(function (f) { return f.id !== id; });
     save();
+  }
+
+  // --- Kalem eşleştirme sözlüğü
+  function eslestirme() { return db.kalemEslestirme; }
+  // kategori null ise kullanıcı kaydı silinir (varsayılana döner)
+  function eslestirmeSet(bicim, ad, kategori, silent) {
+    var K = root.App.kalemler;
+    var k = K.key(bicim, ad);
+    if (!kategori || kategori === K.varsayilan(ad, bicim)) delete db.kalemEslestirme[k];
+    else db.kalemEslestirme[k] = kategori;
+    recomputeAll(silent);
+  }
+  // Sözlük değişince tüm faturaların özetini yeniden hesaplar (elle düzeltilen alanlara dokunmaz)
+  function recomputeAll(silent) {
+    var K = root.App.kalemler;
+    db.faturalar.forEach(function (f) { if (f.kalemler) K.applySummary(f, db.kalemEslestirme); });
+    if (!silent) save();
+  }
+  // Kayıtlı faturalarda geçen tüm kalem adları (biçim bazında), örnek tutar ve sayı ile
+  function kalemAdlari() {
+    var K = root.App.kalemler, map = {};
+    db.faturalar.forEach(function (f) {
+      (f.kalemler || []).forEach(function (k) {
+        var key = K.key(f.bicim, k.ad);
+        if (!map[key]) map[key] = { bicim: f.bicim || 'genel', ad: k.ad, adet: 0, toplam: 0 };
+        map[key].adet++;
+        map[key].toplam += k.tutar || 0;
+      });
+    });
+    return Object.keys(map).map(function (k) { return map[k]; })
+      .sort(function (a, b) { return a.bicim.localeCompare(b.bicim) || a.ad.localeCompare(b.ad, 'tr'); });
   }
 
   // --- Yedekleme
@@ -190,6 +244,8 @@
         db[k].forEach(function (x) { ids[x.id] = true; });
         (d[k] || []).forEach(function (x) { if (!ids[x.id]) db[k].push(x); });
       });
+      Object.keys(d.kalemEslestirme || {}).forEach(function (k) { if (!db.kalemEslestirme[k]) db.kalemEslestirme[k] = d.kalemEslestirme[k]; });
+      recomputeAll(true);
     } else {
       migrate(d);
       db = d;
@@ -207,6 +263,7 @@
     abonelikList: abonelikList, abonelikGet: abonelikGet, abonelikSave: abonelikSave, abonelikDelete: abonelikDelete, abonelikMatch: abonelikMatch,
     uretimList: uretimList, uretimGet: uretimGet, uretimSave: uretimSave, uretimDelete: uretimDelete,
     faturaList: faturaList, faturaGet: faturaGet, faturaSave: faturaSave, faturaDelete: faturaDelete, faturaFindDuplicate: faturaFindDuplicate,
+    eslestirme: eslestirme, eslestirmeSet: eslestirmeSet, recomputeAll: recomputeAll, kalemAdlari: kalemAdlari,
     exportJSON: exportJSON, importJSON: importJSON, stats: stats
   };
 })(this);

@@ -9,7 +9,10 @@
 (function (root) {
   'use strict';
 
-  var U = (typeof require !== 'undefined' && typeof module !== 'undefined') ? require('./util.js') : root.App.util;
+  var NODE = typeof require !== 'undefined' && typeof module !== 'undefined';
+  var U = NODE ? require('./util.js') : root.App.util;
+  var F = NODE ? require('./fields.js') : root.App.fields;
+  var K = NODE ? require('./kalemler.js') : root.App.kalemler;
   var numTR = U.parseTRNumber;
   var norm = U.normalizeLabel;
 
@@ -110,7 +113,7 @@
   // ---------------------------------------------------------------------------------------------
   function parse(items, width) {
     var d = new Doc(items, width);
-    var ctx = { d: d, r: {}, meta: {}, warnings: [], found: 0 };
+    var ctx = { d: d, r: {}, meta: {}, warnings: [], found: 0, kalemler: [] };
     ctx.set = function (key, value) {
       if (value !== null && value !== undefined && value !== '' && !(typeof value === 'number' && isNaN(value))) { ctx.r[key] = value; ctx.found++; }
     };
@@ -119,7 +122,13 @@
     parseCommonHeader(ctx);
     if (bicim === 'ckbogazici') parseBogazici(ctx); else parseCKEnerji(ctx);
     finish(ctx);
-    return { record: ctx.r, meta: ctx.meta, warnings: ctx.warnings, found: ctx.found, lines: d.all.map(function (l) { return l.text; }) };
+    // Boğaziçi kalemleri satır satır toplandı; CK Enerji kalemleri ayrıştırılmış alanlardan, faturadaki adlarıyla kurulur
+    var kalemler = bicim === 'ckbogazici' ? ctx.kalemler : K.fromLegacy(ctx.r);
+    var rec = F.split(ctx.r);
+    rec.kalemler = kalemler;
+    var sum = K.applySummary(rec, null);
+    if (sum.tanimsiz.length) ctx.warnings.push('Tanınmayan kalem: ' + sum.tanimsiz.join(', ') + ' — kategorisini seçin (şimdilik "Diğer bedeller"e eklendi).');
+    return { record: rec, meta: ctx.meta, warnings: ctx.warnings, found: ctx.found, lines: d.all.map(function (l) { return l.text; }) };
   }
 
   function parseCommonHeader(ctx) {
@@ -411,7 +420,7 @@
       var prev = kalemler[kalemler.length - 1];
       var near = prev && l.y - prev.y < 9;
       if (label && !numParts.length) {
-        if (near && prev.nums.length && (prev.label.split('(').length > prev.label.split(')').length)) { prev.label += label; prev.y = l.y; return; }
+        if (near && prev.nums.length && (prev.label.split('(').length > prev.label.split(')').length)) { prev.label += ' ' + label; prev.y = l.y; return; }
         kalemler.push({ label: label, nums: [], y: l.y });
       } else if (!label && numParts.length) {
         if (near && !prev.nums.length) { prev.nums = numParts; prev.y = l.y; }
@@ -422,6 +431,9 @@
     });
 
     var enerjiSatirlari = [], digerSatirlari = [], toplamEnerjiYazili = null;
+    function kalem(ad, miktar, miktarBirimi, birim, tutar) {
+      ctx.kalemler.push({ ad: ad, miktar: miktar, miktarBirimi: miktar === null ? null : miktarBirimi, birim: birim, tutar: tutar });
+    }
     var digerToplam = 0, digerVar = false;
     kalemler.forEach(function (k) {
       var lab = k.label;
@@ -431,31 +443,34 @@
         var ek = /Ek\s*Tüketim|Eksik/i.test(lab);
         var kwh = n.length >= 3 ? numTR(n[0]) : null, birim = n.length >= 3 ? numTR(n[1]) : null, tutar = n.length ? numTR(n[n.length - 1]) : null;
         enerjiSatirlari.push({ zone: zone, ek: ek, kwh: kwh, birim: birim, tutar: tutar, aciklama: lab });
+        kalem(lab, kwh, 'kWh', birim, tutar);
       } else if (/^Toplam Enerji Bedeli/i.test(lab)) {
         if (n.length) toplamEnerjiYazili = numDot(n[0]);
       } else if (/^Dağıtım Bedeli/i.test(lab)) {
         if (n.length) set('dagitimTutar', numTR(n[n.length - 1]));
         if (n.length >= 3) { set('dagitimMiktar', numTR(n[0]) / 1000); set('dagitimBirim', numTR(n[1]) * 1000); }
+        if (n.length) kalem(lab, n.length >= 3 ? numTR(n[0]) : null, 'kWh', n.length >= 3 ? numTR(n[1]) : null, numTR(n[n.length - 1]));
       } else if (/^Güncel Yuvarlama/i.test(lab)) {
-        if (n.length) set('guncelYuvarlama', numDot(n[0]));
+        if (n.length) { set('guncelYuvarlama', numDot(n[0])); kalem(lab, null, null, null, numDot(n[0])); }
       } else if (/^Önceki Yuvarlama/i.test(lab)) {
-        if (n.length) set('oncekiYuvarlama', numDot(n[0]));
+        if (n.length) { set('oncekiYuvarlama', numDot(n[0])); kalem(lab, null, null, null, numDot(n[0])); }
       } else if (/^Vergi ve Fonlar/i.test(lab)) {
         if (n.length) set('vergiToplam', numDot(n[0]));
       } else if (/^Elekt\.?\s*Ver|Tük\.?\s*Ver|Belediye Tüketim/i.test(lab)) {
-        if (n.length) set('btv', numTR(n[n.length - 1]));
+        if (n.length) { set('btv', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^Enerji Fonu/i.test(lab)) {
-        if (n.length) set('enerjiFonu', numTR(n[n.length - 1]));
+        if (n.length) { set('enerjiFonu', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^TRT/i.test(lab)) {
-        if (n.length) set('trtPayi', numTR(n[n.length - 1]));
+        if (n.length) { set('trtPayi', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^KDV/i.test(lab)) {
         var mm = lab.match(/Matrah\s*([-\d.,]+)/i);
         if (mm) set('kdvMatrah', numTR(mm[1]));
-        if (n.length) set('kdv', numTR(n[n.length - 1]));
+        if (n.length) { set('kdv', numTR(n[n.length - 1])); kalem(lab, null, null, null, numTR(n[n.length - 1])); }
       } else if (/^Fatura Tutarı/i.test(lab)) {
         if (n.length) set('faturaTutari', numTR(n[0]));
       } else if (n.length && lab && kalemler.indexOf(k) >= 0 && k.y < (d.findLine('right', /^Fatura Tutarı/i) || { y: 1e9 }).y) {
         digerSatirlari.push(lab + ': ' + n[n.length - 1]);
+        kalem(lab, n.length >= 3 ? numTR(n[0]) : null, n.length >= 3 ? 'kWh' : null, n.length >= 3 ? numTR(n[1]) : null, numTR(n[n.length - 1]));
         digerToplam += numTR(n[n.length - 1]) || 0;
         digerVar = true;
       }

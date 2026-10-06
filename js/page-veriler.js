@@ -41,7 +41,7 @@
     state.records = state.allRecords.filter(function (r) { return !prefs.hiddenRecs[r.id]; });
     state.calc = state.records.map(function (r) { return F.compute(r); });
     state.notes = recordNotes(state.records);
-    state.allFields = F.FIELDS.filter(function (f) { return !prefs.hidden[f.group]; });
+    state.allFields = F.FIELDS.filter(function (f) { return !f.hidden && !prefs.hidden[f.group]; });
     state.fields = state.allFields.filter(function (f) { return !prefs.hiddenFields[f.key]; });
     state.gapFields = gaps(state.allFields, function (f) { return prefs.hiddenFields[f.key]; }, function (f) { return f.key; });
     state.gapRecs = gaps(state.allRecords, function (r) { return prefs.hiddenRecs[r.id]; }, function (r) { return r.id; });
@@ -230,6 +230,7 @@
     var hc = hiddenCounts();
     bar.appendChild(UI.el('button', { class: 'btn sm' + (hc.fields + hc.recs ? ' has-hidden' : ''), title: 'Satır ve sütunları gizle / göster', onclick: manageHidden },
       '👁 Gizle / Göster' + (hc.fields + hc.recs ? ' <b>(' + (hc.fields ? hc.fields + ' alan' : '') + (hc.fields && hc.recs ? ', ' : '') + (hc.recs ? hc.recs + ' fatura' : '') + ' gizli)</b>' : '')));
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { App.kalemUI.openEslestirme(); }, title: 'Fatura kalemlerinin hangi sütunda toplanacağını belirleyin' }, 'Kalem Eşleştirme'));
     bar.appendChild(UI.el('button', { class: 'btn sm', onclick: exportCSV, title: 'Görünen satır ve sütunları indirir' }, 'CSV (Excel) indir'));
     bar.appendChild(UI.el('a', { class: 'btn sm', href: '#/yukle' + (state.ab !== 'tum' ? '?ab=' + state.ab : '') }, 'Fatura Yükle'));
     page.appendChild(bar);
@@ -565,7 +566,11 @@
       if (td) { state.sel = { r: +td.dataset.r, c: +td.dataset.c }; paintSelection(); }
     });
     document.addEventListener('mouseup', function () { dragging = false; });
-    g.addEventListener('dblclick', function (e) { if (e.target.closest('td[data-r]')) startEdit(); });
+    g.addEventListener('dblclick', function (e) {
+      if (e.target.closest('td[data-r]')) { startEdit(); return; }
+      var ri = recordIndexFromHeader(e.target);
+      if (ri !== null) App.kalemUI.openFaturaDetay(state.records[ri]);
+    });
     g.addEventListener('contextmenu', function (e) {
       var td = e.target.closest('td[data-r]'), rh = e.target.closest('th.rowh[data-r]'), ch = e.target.closest('th.colh[data-c]');
       if (!td && !rh && !ch) return;
@@ -698,6 +703,13 @@
     });
   }
 
+  // Fatura başlığından kayıt sırası (aylar sütundayken sütun başlığı, satırdayken satır başlığı)
+  function recordIndexFromHeader(t) {
+    var th = prefs.orient === 'cols' ? t.closest('th.colh[data-c]') : t.closest('th.rowh[data-r]');
+    if (!th) return null;
+    return prefs.orient === 'cols' ? +th.dataset.c : +th.dataset.r;
+  }
+
   // --- Bağlam menüsü
   function closeMenu() { var m = document.getElementById('ctxmenu'); if (m) m.remove(); }
   function showMenu(x, y, what) {
@@ -713,6 +725,8 @@
     items.push({ label: 'Gizli sütunları göster' + (colHidden ? ' (' + colHidden + ')' : ''), key: 'Ctrl+Shift+0', disabled: !colHidden, fn: function () { unhideAxis('col'); } });
     items.push(null);
     items.push({ label: 'Gizle / Göster penceresi…', fn: manageHidden });
+    var ref = cellRef(state.sel.r, state.sel.c);
+    if (state.records[ref.ri]) items.push({ label: 'Fatura detayı ve kalemleri…', fn: function () { App.kalemUI.openFaturaDetay(state.records[ref.ri]); } });
     var m = UI.el('div', { class: 'ctxmenu', id: 'ctxmenu', role: 'menu' });
     items.forEach(function (it) {
       if (!it) { m.appendChild(UI.el('div', { class: 'ctx-sep' })); return; }
@@ -744,7 +758,7 @@
     fBox.appendChild(fTools);
     var fList = UI.el('div', { class: 'hm-list' });
     F.GROUPS.forEach(function (g) {
-      var fs = F.FIELDS.filter(function (f) { return f.group === g.id; });
+      var fs = F.FIELDS.filter(function (f) { return f.group === g.id && !f.hidden; });
       if (!fs.length) return;
       var gl = UI.el('label', { class: 'hm-group' + (prefs.hidden[g.id] ? ' off' : '') }, '<input type="checkbox" data-group="' + g.id + '"> ' + U.escapeHtml(g.label) + (prefs.hidden[g.id] ? ' <i>(grup kapalı)</i>' : ''));
       fList.appendChild(gl);
