@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mahsupla</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">⚡</span> Mahsupla <small>Lisanssız Üretim Mahsuplaşma Takibi</small></div>
+    <nav class="nav">
+      <a href="#/tesisler" data-page="tesisler">Tesisler</a>
+      <a href="#/yukle" data-page="yukle">Fatura Yükle</a>
+      <a href="#/veriler" data-page="veriler">Veriler</a>
+    </nav>
+    <div class="top-actions">
+      <button class="btn sm ghost" id="btnBackup" title="Tüm verileri JSON dosyası olarak indir">Yedek Al</button>
+      <button class="btn sm ghost" id="btnRestore" title="JSON yedeğini geri yükle">Yedekten Yükle</button>
+    </div>
+  </header>
+
+  <main id="main"></main>
+  <div id="modal" class="modal"></div>
+  <div id="toasts" class="toasts"></div>
+
+  <script src="vendor/pdfjs/pdf.min.js"></script>
+  <script src="vendor/pdfjs/pdf.worker.min.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/fields.js"></script>
+  <script src="js/fatura-parser.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/page-tesisler.js"></script>
+  <script src="js/page-yukle.js"></script>
+  <script src="js/page-veriler.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
