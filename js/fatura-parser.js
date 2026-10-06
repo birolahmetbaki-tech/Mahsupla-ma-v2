@@ -9,7 +9,9 @@
 (function (root) {
   'use strict';
 
-  var U = (typeof require !== 'undefined' && typeof module !== 'undefined') ? require('./util.js') : root.App.util;
+  var NODE = typeof require !== 'undefined' && typeof module !== 'undefined';
+  var U = NODE ? require('./util.js') : root.App.util;
+  var F = NODE ? require('./fields.js') : root.App.fields;
   var numTR = U.parseTRNumber;
   var norm = U.normalizeLabel;
 
@@ -119,7 +121,8 @@
     parseCommonHeader(ctx);
     if (bicim === 'ckbogazici') parseBogazici(ctx); else parseCKEnerji(ctx);
     finish(ctx);
-    return { record: ctx.r, meta: ctx.meta, warnings: ctx.warnings, found: ctx.found, lines: d.all.map(function (l) { return l.text; }) };
+    // Yalnızca tanımlı alanlar saklanır (bkz. fields.js)
+    return { record: F.pick(ctx.r), meta: ctx.meta, warnings: ctx.warnings, found: ctx.found, lines: d.all.map(function (l) { return l.text; }) };
   }
 
   function parseCommonHeader(ctx) {
@@ -524,12 +527,6 @@
 
   function finish(ctx) {
     var r = ctx.r, warnings = ctx.warnings;
-    if (r.enduktifKvarh === 0 && r.endSon > r.endIlk) {
-      warnings.push('Endüktif endeks ilerlemiş ama faturada endüktif tüketim 0 yazıyor (sınır altı olduğu için bedellendirilmemiş olabilir).');
-    }
-    if (r.kapasitifKvarh === 0 && r.kapSon > r.kapIlk) {
-      warnings.push('Kapasitif endeks ilerlemiş ama faturada kapasitif tüketim 0 yazıyor (sınır altı olduğu için bedellendirilmemiş olabilir).');
-    }
     var ek = ['ekT1Kwh', 'ekT2Kwh', 'ekT3Kwh', 'ekTekKwh'].reduce(function (a, k) { return a + (r[k] || 0); }, 0);
     if (ek) warnings.push('GES mahsubu / ek tüketim satırı var: ' + U.formatTRNumber(ek, 3) + ' kWh.');
     if (ctx.found < 10) warnings.push('Az sayıda alan okunabildi (' + ctx.found + '). Fatura biçimi farklı olabilir; değerleri elle kontrol edin.');

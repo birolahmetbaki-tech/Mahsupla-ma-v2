@@ -30,7 +30,7 @@
 
   // Eski sürüm alan adlarını yenilerine taşır.
   function migrate(d) {
-    d.faturalar.forEach(function (f) {
+    d.faturalar = d.faturalar.map(function (f) {
       [['ekTuketimKwh', 'ekTekKwh'], ['ekTuketimBirim', 'ekTekBirim'], ['ekTuketimTutar', 'ekTekTutar']].forEach(function (m) {
         if (f[m[0]] !== undefined) { if (f[m[1]] === undefined && f[m[0]]) f[m[1]] = f[m[0]]; delete f[m[0]]; }
       });
@@ -38,6 +38,8 @@
       ['t1', 't2', 't3'].forEach(function (z) {
         if (f[z + 'FatKwh'] === undefined && f[z + 'Tutar'] !== undefined && f[z + 'Kwh'] !== undefined) f[z + 'FatKwh'] = f[z + 'Kwh'];
       });
+      // Artık saklanmayan alanları at
+      return root.App.fields.pick(f);
     });
   }
 
