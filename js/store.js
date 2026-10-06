@@ -200,21 +200,12 @@
     save();
   }
 
-  // --- Fatura şablonları (bkz. sablon.js)
-  function sablonList() { return db.sablonlar.slice().sort(function (a, b) { return String(a.ad).localeCompare(String(b.ad), 'tr'); }); }
+  // --- Eski PDF içe aktarmadan kalan şablonlar: yalnız o faturaların kalem kategorilerini korumak için okunur
   function sablonGet(id) { return db.sablonlar.find(function (s) { return s.id === id; }) || null; }
-  function sablonSave(sb) {
-    sb.guncelleme = new Date().toISOString();
-    var i = db.sablonlar.findIndex(function (x) { return x.id === sb.id; });
-    if (i >= 0) db.sablonlar[i] = sb; else db.sablonlar.push(sb);
-    recomputeAll(true);
-    save();
-    return sb;
-  }
-  function sablonDelete(id) { db.sablonlar = db.sablonlar.filter(function (s) { return s.id !== id; }); save(); }
   function sablonHaritasi(id) {
-    var sb = id ? sablonGet(id) : null;
-    return sb && root.App.sablon ? root.App.sablon.sablonKategorileri(sb) : null;
+    var sb = id ? sablonGet(id) : null, m = null, K = root.App.kalemler;
+    if (sb) (sb.tanimlar || []).forEach(function (t) { if (t.tur === 'kalem' && t.kategori) { m = m || {}; m[K.norm(t.ad)] = t.kategori; } });
+    return m;
   }
 
   // --- Kalem eşleştirme sözlüğü
@@ -287,7 +278,6 @@
     abonelikList: abonelikList, abonelikGet: abonelikGet, abonelikSave: abonelikSave, abonelikDelete: abonelikDelete, abonelikMatch: abonelikMatch,
     uretimList: uretimList, uretimGet: uretimGet, uretimSave: uretimSave, uretimDelete: uretimDelete,
     faturaList: faturaList, faturaGet: faturaGet, faturaSave: faturaSave, faturaDelete: faturaDelete, faturaFindDuplicate: faturaFindDuplicate,
-    sablonList: sablonList, sablonGet: sablonGet, sablonSave: sablonSave, sablonDelete: sablonDelete,
     eslestirme: eslestirme, eslestirmeSet: eslestirmeSet, recomputeAll: recomputeAll, kalemAdlari: kalemAdlari,
     exportJSON: exportJSON, importJSON: importJSON, stats: stats
   };

@@ -122,7 +122,7 @@
     head.appendChild(UI.el('button', { class: 'btn primary sm', onclick: function () { editTuketim(null); } }, '+ Yeni'));
     side.appendChild(head);
     if (!list.length) {
-      side.appendChild(UI.el('p', { class: 'muted pad' }, 'Henüz tesis yok. "+ Yeni" ile ekleyin ya da Fatura Yükle sayfasından faturayla otomatik oluşturun.'));
+      side.appendChild(UI.el('p', { class: 'muted pad' }, 'Henüz tesis yok. "+ Yeni" ile ekleyin'));
     }
     list.forEach(function (t) {
       var abs = S.abonelikList(t.id);
@@ -156,7 +156,6 @@
 
     var head = UI.el('div', { class: 'panel-head' }, '<div><h2>' + U.escapeHtml(t.ad) + '</h2><span class="muted">' + U.escapeHtml(t.adres || '') + '</span></div>');
     var actions = UI.el('div', { class: 'actions' });
-    actions.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { location.hash = '#/yukle'; } }, 'Fatura Yükle'));
     actions.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { location.hash = '#/veriler?tt=' + t.id + '&ab=tum'; } }, 'Veriler (tümü)'));
     actions.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { editTuketim(t); } }, 'Düzenle'));
     actions.appendChild(UI.el('button', { class: 'btn sm danger', onclick: function () {
@@ -172,7 +171,7 @@
     ah.appendChild(UI.el('button', { class: 'btn primary sm', onclick: function () { editAbonelik(null, t.id); } }, '+ Abonelik Ekle'));
     wrap.appendChild(ah);
     if (!abs.length) {
-      wrap.appendChild(UI.el('p', { class: 'muted' }, 'Bu tesiste abonelik yok. Faturalar aboneliğe kaydedilir; "+ Abonelik Ekle" ile ya da Fatura Yükle sayfasından faturayla oluşturun.'));
+      wrap.appendChild(UI.el('p', { class: 'muted' }, 'Bu tesiste abonelik yok. Faturalar aboneliğe kaydedilir; "+ Abonelik Ekle" ile oluşturun.'));
     }
     var cards = UI.el('div', { class: 'cards' });
     abs.forEach(function (a) {
@@ -191,7 +190,6 @@
         kv('Faturalar', fs.length + (son ? ' (son: ' + U.donemLabel(son.donem) + ')' : ''));
       var act = UI.el('div', { class: 'card-actions' });
       act.appendChild(UI.el('button', { class: 'btn xs', onclick: function () { location.hash = '#/veriler?tt=' + t.id + '&ab=' + a.id; } }, 'Veriler'));
-      act.appendChild(UI.el('button', { class: 'btn xs', onclick: function () { location.hash = '#/yukle?ab=' + a.id; } }, 'Fatura Yükle'));
       act.appendChild(UI.el('button', { class: 'btn xs', onclick: function () { editAbonelik(a, t.id); } }, 'Düzenle'));
       act.appendChild(UI.el('button', { class: 'btn xs danger', onclick: function () {
         UI.confirmModal('Aboneliği sil', '"' + a.ad + '" aboneliği ve ' + fs.length + ' fatura kaydı silinecek. Emin misiniz?', 'Sil', function () {

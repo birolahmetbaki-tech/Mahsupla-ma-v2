@@ -269,14 +269,13 @@
     bar.appendChild(orient);
 
     bar.appendChild(UI.el('span', { class: 'sep' }));
-    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: addRow }, '+ Boş kayıt'));
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: addRow, title: 'Seçili aboneliğe boş bir fatura satırı ekler; değerleri hücrelere elle girin' }, '+ Fatura ekle'));
     bar.appendChild(UI.el('button', { class: 'btn sm danger', onclick: deleteSelected }, 'Seçili kaydı sil'));
     var hc = hiddenCounts();
     bar.appendChild(UI.el('button', { class: 'btn sm' + (hc.fields + hc.recs ? ' has-hidden' : ''), title: 'Satır ve sütunları gizle / göster', onclick: manageHidden },
       '👁 Gizle / Göster' + (hc.fields + hc.recs ? ' <b>(' + (hc.fields ? hc.fields + ' alan' : '') + (hc.fields && hc.recs ? ', ' : '') + (hc.recs ? hc.recs + ' fatura' : '') + ' gizli)</b>' : '')));
-    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { App.kalemUI.openEslestirme(); }, title: 'Fatura kalemlerinin hangi sütunda toplanacağını belirleyin' }, 'Kalem Eşleştirme'));
+    if (state.records.some(function (r) { return r.kalemler && r.kalemler.length; })) bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { App.kalemUI.openEslestirme(); }, title: 'Fatura kalemlerinin hangi sütunda toplanacağını belirleyin' }, 'Kalem Eşleştirme'));
     bar.appendChild(UI.el('button', { class: 'btn sm', onclick: exportCSV, title: 'Görünen satır ve sütunları indirir' }, 'CSV (Excel) indir'));
-    bar.appendChild(UI.el('a', { class: 'btn sm', href: '#/yukle' + (state.ab !== 'tum' ? '?ab=' + state.ab : '') }, 'Fatura Yükle'));
     page.appendChild(bar);
 
     // Grup görünürlüğü
@@ -308,9 +307,9 @@
     }
 
     if (!state.records.length) {
-      page.appendChild(UI.el('div', { class: 'empty' }, '<p>' + (abs.length ? 'Kayıtlı fatura yok.' : 'Bu tesiste abonelik yok; önce Tesisler sayfasından abonelik ekleyin.') + '</p><a class="btn primary" href="#/yukle' + (state.ab !== 'tum' ? '?ab=' + state.ab : '') + '">Fatura Yükle</a> <button class="btn" id="bosKayit">+ Elle kayıt ekle</button>'));
+      page.appendChild(UI.el('div', { class: 'empty' }, '<p>' + (abs.length ? 'Kayıtlı fatura yok.' : 'Bu tesiste abonelik yok; önce Tesisler sayfasından abonelik ekleyin.') + '</p>' + (abs.length ? '<button class="btn primary" id="bosKayit">+ Fatura ekle</button>' : '')));
       container.appendChild(page);
-      page.querySelector('#bosKayit').onclick = addRow;
+      if (abs.length) page.querySelector('#bosKayit').onclick = addRow;
       return;
     }
 
@@ -719,9 +718,12 @@
   function addRow() {
     var abs = S.abonelikList(state.tt);
     var abId = state.ab !== 'tum' ? state.ab : (abs.length === 1 ? abs[0].id : null);
-    if (!abId) { UI.toast(abs.length ? 'Elle kayıt için önce üstten bir abonelik seçin.' : 'Önce Tesisler sayfasından abonelik ekleyin.', 'err'); return; }
-    var now = new Date();
-    var donem = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2);
+    if (!abId) { UI.toast(abs.length ? 'Fatura eklemek için önce üstten bir abonelik seçin.' : 'Önce Tesisler sayfasından abonelik ekleyin.', 'err'); return; }
+    // Dönem: aboneliğin son faturasından sonraki ay (fatura yoksa içinde bulunulan ay)
+    var now = new Date(), y = now.getFullYear(), m = now.getMonth() + 1;
+    var son = S.faturaList(state.tt, abId).map(function (f) { return f.donem; }).filter(function (d) { return /^\d{4}-\d{2}$/.test(d || ''); }).sort().pop();
+    if (son) { y = +son.slice(0, 4); m = +son.slice(5) + 1; if (m > 12) { m = 1; y++; } }
+    var donem = y + '-' + ('0' + m).slice(-2);
     var rec = S.faturaSave({ tuketimTesisId: state.tt, abonelikId: abId, donem: donem, kaynak: { elle: true } });
     prefs.yil = 'tum'; savePrefs();
     render(containerRef);
@@ -731,7 +733,7 @@
       state.anchor = { r: state.sel.r, c: state.sel.c };
       paintSelection();
     }
-    UI.toast('Boş kayıt eklendi; dönemi ve değerleri girin.', 'ok');
+    UI.toast(U.donemLabel(donem) + ' faturası eklendi; değerleri hücrelere girin.', 'ok');
   }
 
   function deleteSelected() {

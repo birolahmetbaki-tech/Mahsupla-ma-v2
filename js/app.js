@@ -1,13 +1,9 @@
-/* Uygulama kabuğu: sayfa yönlendirme (#/tesisler, #/yukle, #/veriler) ve yedekleme. */
+/* Uygulama kabuğu: sayfa yönlendirme (#/tesisler, #/veriler) ve yedekleme. */
 (function (root) {
   'use strict';
   var App = root.App, S = App.store, UI = App.ui, U = App.util;
 
-  // pdf.worker.min.js ayrı <script> olarak yüklendiği için pdf.js onu ana iş parçacığında kullanır;
-  // bu sayede program sunucusuz (file://) açıldığında da PDF okunabilir.
-  if (root.pdfjsLib && root.pdfjsLib.GlobalWorkerOptions) root.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.min.js';
-
-  var ROUTES = { tesisler: 'Tesisler', yukle: 'Fatura Yükle', veriler: 'Veriler' };
+  var ROUTES = { tesisler: 'Tesisler', veriler: 'Veriler' };
   var current = null;
 
   function parseHash() {
@@ -60,6 +56,5 @@
   document.getElementById('btnBackup').onclick = backup;
   document.getElementById('btnRestore').onclick = restore;
   root.addEventListener('hashchange', route);
-  if (!root.pdfjsLib) console.warn('pdf.js yüklenemedi; fatura okuma çalışmayacak.');
   route();
 })(this);
