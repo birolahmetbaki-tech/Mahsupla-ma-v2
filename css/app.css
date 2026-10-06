@@ -230,3 +230,13 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .hm-item { display: block; font-size: 13px; padding: 2px 0 2px 14px; }
 .hm-item i, .hm-group i { color: var(--muted); font-style: normal; font-size: 11px; text-transform: none; }
 @media (max-width: 860px) { .hm-cols { grid-template-columns: 1fr; } }
+
+.checks-list { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: 6px; padding: 8px; max-height: 180px; overflow: auto; }
+.check-item { font-size: 13px; display: flex; gap: 6px; align-items: center; }
+
+.sheet th small.abn { display: block; font-weight: 600; color: var(--accent); font-size: 10.5px; }
+.card.abonelik { display: flex; flex-direction: column; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.card-head h4 { margin: 0; text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 14px; }
+.card-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.small { font-size: 12px; margin-bottom: 4px; }

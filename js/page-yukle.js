@@ -1,15 +1,16 @@
-/* Fatura Yükle modülü: PDF e-faturaları okur, önizletir, kontrol eder ve tüketim tesisinin Veriler sayfasına kaydeder. */
+/* Fatura Yükle modülü: PDF e-faturaları okur, önizletir, kontrol eder ve ilgili aboneliğe kaydeder.
+   Eşleştirme faturadaki EIC / sözleşme no / tesisat no ile aboneliğe yapılır. */
 (function (root) {
   'use strict';
   var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser;
 
-  var queue = []; // {id, file, status, result, record, tesisId, error}
+  var queue = []; // {id, file, name, status, result, record, abId, error}
   var hedef = 'auto';
   var containerRef = null;
 
   function render(container, params) {
     containerRef = container;
-    if (params && params.tt) hedef = params.tt;
+    if (params && params.ab) hedef = params.ab;
     container.innerHTML = '';
     var page = UI.el('div', { class: 'yukle-page' });
 
@@ -17,19 +18,14 @@
     page.appendChild(head);
 
     var bar = UI.el('div', { class: 'toolbar' });
-    var sel = UI.el('select', { id: 'hedefTesis' });
-    sel.appendChild(UI.el('option', { value: 'auto' }, 'Otomatik eşleştir (EIC / Sözleşme No)'));
-    S.tuketimList().forEach(function (t) {
-      var o = UI.el('option', { value: t.id }, U.escapeHtml(t.ad));
-      if (t.id === hedef) o.selected = true;
-      sel.appendChild(o);
-    });
+    var sel = abonelikSelect(hedef, 'Otomatik eşleştir (EIC / Sözleşme No)', 'auto');
+    sel.id = 'hedefTesis';
     sel.onchange = function () {
       hedef = sel.value;
-      queue.forEach(function (q) { if (q.status === 'hazir') q.tesisId = resolveTesis(q.record); });
+      queue.forEach(function (q) { if (q.status === 'hazir') q.abId = resolveAbonelik(q.record); });
       renderQueue();
     };
-    bar.appendChild(UI.el('label', { class: 'inline' }, 'Hedef tüketim tesisi:'));
+    bar.appendChild(UI.el('label', { class: 'inline' }, 'Hedef abonelik:'));
     bar.appendChild(sel);
     if (queue.length) {
       bar.appendChild(UI.el('button', { class: 'btn primary sm', onclick: saveAll }, 'Hazır olanların tümünü kaydet'));
@@ -53,10 +49,34 @@
     renderQueue();
   }
 
-  function resolveTesis(rec) {
-    if (hedef !== 'auto') return hedef;
-    var m = S.tuketimMatch(rec || {});
+  function resolveAbonelik(rec) {
+    if (hedef !== 'auto' && S.abonelikGet(hedef)) return hedef;
+    var m = S.abonelikMatch(rec || {});
     return m ? m.id : null;
+  }
+
+  // Tüketim tesislerine göre gruplanmış abonelik seçimi
+  function abonelikSelect(selected, emptyLabel, emptyValue) {
+    var sel = UI.el('select');
+    sel.appendChild(UI.el('option', { value: emptyValue }, U.escapeHtml(emptyLabel)));
+    S.tuketimList().forEach(function (t) {
+      var abs = S.abonelikList(t.id);
+      if (!abs.length) return;
+      var og = UI.el('optgroup', { label: t.ad });
+      abs.forEach(function (a) {
+        var o = UI.el('option', { value: a.id }, U.escapeHtml(a.ad + (a.eic ? ' · ' + a.eic : '')));
+        if (a.id === selected) o.selected = true;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    });
+    return sel;
+  }
+  function abonelikAdi(abId) {
+    var a = S.abonelikGet(abId);
+    if (!a) return '';
+    var t = S.tuketimGet(a.tuketimTesisId);
+    return (t ? t.ad + ' › ' : '') + a.ad;
   }
 
   function addFiles(files) {
@@ -70,7 +90,7 @@
           return {
             id: U.uid('q'), file: file, status: 'hazir', result: inv.res, record: inv.res.record,
             name: file.name + (list.length > 1 ? ' · s.' + inv.pageFrom + (inv.pageTo > inv.pageFrom ? '–' + inv.pageTo : '') : ''),
-            tesisId: resolveTesis(inv.res.record)
+            abId: resolveAbonelik(inv.res.record)
           };
         });
         queue.splice.apply(queue, [queue.indexOf(q), 1].concat(items));
@@ -109,9 +129,10 @@
     if (q.status === 'okunuyor') { c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge">Okunuyor…</span></div>'; return c; }
     if (q.status === 'hata') { c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge err">Hata</span></div><p class="err-text">' + U.escapeHtml(q.error) + '</p>'; return c; }
     if (q.status === 'kaydedildi') {
+      var ab = S.abonelikGet(q.abId) || {};
       c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge ok">Kaydedildi</span></div><p>' +
-        U.escapeHtml((S.tuketimGet(q.tesisId) || {}).ad || '') + ' · ' + U.donemLabel(q.record.donem) +
-        ' · <a href="#/veriler?tt=' + q.tesisId + '">Veriler sayfasında aç →</a></p>';
+        U.escapeHtml(abonelikAdi(q.abId)) + ' · ' + U.donemLabel(q.record.donem) +
+        ' · <a href="#/veriler?tt=' + ab.tuketimTesisId + '&ab=' + q.abId + '">Veriler sayfasında aç →</a></p>';
       return c;
     }
     if (q.status === 'atlandi') { c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge">Atlandı</span></div>'; return c; }
@@ -129,31 +150,25 @@
       '<span class="muted">' + U.escapeHtml(r.tedarikci || '') + ' · ' + U.escapeHtml(r.faturaNo || '') + '</span>');
     c.appendChild(head);
 
-    // Tesis eşleştirme
+    // Abonelik eşleştirme
     var match = UI.el('div', { class: 'match' });
-    var sel = UI.el('select');
-    sel.appendChild(UI.el('option', { value: '' }, '— Tüketim tesisi seçin —'));
-    S.tuketimList().forEach(function (t) {
-      var o = UI.el('option', { value: t.id }, U.escapeHtml(t.ad));
-      if (t.id === q.tesisId) o.selected = true;
-      sel.appendChild(o);
-    });
-    sel.onchange = function () { q.tesisId = sel.value || null; renderQueue(); };
-    match.appendChild(UI.el('span', null, 'Kaydedilecek tesis:'));
+    var sel = abonelikSelect(q.abId, '— Abonelik seçin —', '');
+    sel.onchange = function () { q.abId = sel.value || null; renderQueue(); };
+    match.appendChild(UI.el('span', null, 'Kaydedilecek abonelik:'));
     match.appendChild(sel);
-    match.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { createTesisFrom(q); } }, 'Faturadan yeni tesis oluştur'));
+    match.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { createAbonelikFrom(q); } }, 'Faturadan yeni abonelik oluştur'));
     c.appendChild(match);
 
-    var dup = q.tesisId ? S.faturaFindDuplicate(q.tesisId, r) : null;
+    var dup = q.abId ? S.faturaFindDuplicate(q.abId, r) : null;
     var info = [];
-    if (!q.tesisId) info.push('<li class="warn">Bu fatura hiçbir tesisle eşleşmedi (EIC: ' + U.escapeHtml(r.eic || '—') + '). Tesis seçin veya faturadan yeni tesis oluşturun.</li>');
-    if (q.tesisId && r.donem) {
-      var ayni = S.faturaList(q.tesisId).filter(function (f) { return f.donem === r.donem && f.faturaNo !== r.faturaNo; });
-      if (ayni.length) info.push('<li class="warn">Bu tesiste ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait başka fatura da kayıtlı (' + ayni.map(function (f) { return U.escapeHtml(f.faturaNo || '—'); }).join(', ') + '). Düzeltme/iptal faturası olabilir; kontrol edin.</li>');
+    if (!q.abId) info.push('<li class="warn">Bu fatura hiçbir abonelikle eşleşmedi (EIC: ' + U.escapeHtml(r.eic || '—') + '). Abonelik seçin veya faturadan yeni abonelik oluşturun.</li>');
+    if (q.abId && r.donem) {
+      var ayni = S.faturaList(null, q.abId).filter(function (f) { return f.donem === r.donem && f.faturaNo !== r.faturaNo; });
+      if (ayni.length) info.push('<li class="warn">Bu abonelikte ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait başka fatura da kayıtlı (' + ayni.map(function (f) { return U.escapeHtml(f.faturaNo || '—'); }).join(', ') + '). Düzeltme/iptal faturası olabilir; kontrol edin.</li>');
     }
-    var kardes = queue.filter(function (x) { return x !== q && x.record && x.record.donem === r.donem && x.status === 'hazir'; });
+    var kardes = queue.filter(function (x) { return x !== q && x.record && x.record.donem === r.donem && x.status === 'hazir' && x.abId === q.abId; });
     if (kardes.length) info.push('<li class="warn">Bu yüklemede ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait ' + (kardes.length + 1) + ' fatura var.</li>');
-    if (dup) info.push('<li class="warn">Bu tesiste aynı fatura zaten kayıtlı (' + U.escapeHtml(dup.faturaNo || U.donemLabel(dup.donem)) + '). Kaydederseniz mevcut kayıt güncellenir.</li>');
+    if (dup) info.push('<li class="warn">Bu abonelikte aynı fatura zaten kayıtlı (' + U.escapeHtml(dup.faturaNo || U.donemLabel(dup.donem)) + '). Kaydederseniz mevcut kayıt güncellenir.</li>');
     res.warnings.forEach(function (w) { info.push('<li>' + U.escapeHtml(w) + '</li>'); });
     if (info.length) c.appendChild(UI.el('ul', { class: 'notes' }, info.join('')));
 
@@ -198,7 +213,7 @@
     var foot = UI.el('div', { class: 'fcard-foot' });
     foot.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { q.status = 'atlandi'; renderQueue(); } }, 'Atla'));
     var saveBtn = UI.el('button', { class: 'btn primary sm', onclick: function () { saveOne(q); renderQueue(); } }, dup ? 'Güncelle' : 'Kaydet');
-    if (!q.tesisId) saveBtn.disabled = true;
+    if (!q.abId) saveBtn.disabled = true;
     foot.appendChild(saveBtn);
     c.appendChild(foot);
     return c;
@@ -219,15 +234,16 @@
   }
 
   function saveOne(q, quietToast) {
-    if (!q.tesisId || q.status !== 'hazir') return false;
+    var t = q.abId ? S.abonelikGet(q.abId) : null;
+    if (!t || q.status !== 'hazir') return false;
     var rec = Object.assign({}, q.record);
-    var dup = S.faturaFindDuplicate(q.tesisId, rec);
+    var dup = S.faturaFindDuplicate(q.abId, rec);
     if (dup) rec.id = dup.id;
-    rec.tuketimTesisId = q.tesisId;
+    rec.abonelikId = t.id;
+    rec.tuketimTesisId = t.tuketimTesisId;
     rec.kaynak = { dosya: q.name, yukleme: new Date().toISOString(), meta: q.result.meta };
     S.faturaSave(rec);
-    // Tesis kartındaki boş alanları faturadan tamamla
-    var t = S.tuketimGet(q.tesisId);
+    // Abonelik kartındaki boş alanları faturadan tamamla
     var changed = false;
     [['eic', rec.eic], ['sozlesmeNo', rec.sozlesmeNo], ['tedarikci', rec.tedarikci], ['tuketiciGrubuFatura', rec.tuketiciGrubu],
      ['carpan', rec.carpan], ['sozlesmeGucu', rec.gucMiktar]].forEach(function (p) {
@@ -236,7 +252,7 @@
     if (rec.gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
       t.oncekiYilTuketim = rec.gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
     }
-    if (changed) S.tuketimSave(t);
+    if (changed) S.abonelikSave(t);
     q.status = 'kaydedildi';
     if (!quietToast) UI.toast(q.name + ' kaydedildi.', 'ok');
     return true;
@@ -245,7 +261,7 @@
   function saveAll() {
     var n = 0;
     App.quietRender = true;
-    try { queue.forEach(function (q) { if (q.status === 'hazir' && q.tesisId && saveOne(q, true)) n++; }); }
+    try { queue.forEach(function (q) { if (q.status === 'hazir' && q.abId && saveOne(q, true)) n++; }); }
     finally { App.quietRender = false; }
     UI.toast(n + ' fatura kaydedildi.', 'ok');
     render(containerRef);
@@ -261,28 +277,27 @@
     return '';
   }
 
-  function createTesisFrom(q) {
+  function createAbonelikFrom(q) {
     var r = q.record, m = q.result.meta;
     var grup = r.tuketiciGrubu || '';
     var prefill = {
-      ad: (m.musteriAdi || 'Yeni Tesis').split(/\s+/).slice(0, 3).join(' '),
+      ad: (m.musteriAdi || 'Yeni Abonelik').split(/\s+/).slice(0, 3).join(' '),
+      yeniTesisAdi: (m.musteriAdi || 'Yeni Tesis').split(/\s+/).slice(0, 3).join(' '),
       unvan: m.musteriAdi, vkn: m.vkn, vergiDairesi: m.vergiDairesi, adres: m.adres,
       aboneGrubu: guessAbone(grup),
       gerilim: /\bOG\b/.test(grup) ? 'OG' : /\bAG\b/.test(grup) ? 'AG' : /\bYG\b/.test(grup) ? 'YG' : '',
-      tarifeTerim: /\bTT\b/.test(grup) ? 'Tek Terimli' : /\bÇT\b|\bCT\b/.test(grup) ? 'Çift Terimli' : '',
-      tarifeZaman: (r.t2Kwh || r.t3Kwh) ? 'Üç Zamanlı' : '',
+      tarifeTerim: /\bTT\b|Tek Terim/i.test(grup) ? 'Tek Terimli' : /\bÇT\b|\bCT\b|Çift Terim/i.test(grup) ? 'Çift Terimli' : '',
+      tarifeZaman: /Tek Zaman/i.test(grup) ? 'Tek Zamanlı' : /Üç Zaman/i.test(grup) || r.t2Kwh || r.t3Kwh ? 'Üç Zamanlı' : '',
       serbestTuketici: /toptan|ortakl/i.test(r.tedarikci || '') ? 'Evet' : '',
       tedarikci: r.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic, sozlesmeNo: r.sozlesmeNo, tesisatNo: r.tesisatNo,
       sozlesmeGucu: r.gucMiktar, carpan: r.carpan, oncekiYilTuketim: r.gecmisYilKwh, oncekiYilTuketimDonem: r.donem
     };
-    App.onTuketimSaved = function (t) {
-      q.tesisId = t.id;
-      App.onTuketimSaved = null;
-      // Aynı EIC/sözleşme no'lu diğer faturalar da yeni tesise eşleşsin
-      queue.forEach(function (x) { if (x.status === 'hazir' && !x.tesisId) x.tesisId = resolveTesis(x.record); });
+    App.pages.tesisler.editAbonelik(null, null, prefill, function (a) {
+      q.abId = a.id;
+      // Aynı EIC/sözleşme no'lu diğer faturalar da yeni aboneliğe eşleşsin
+      queue.forEach(function (x) { if (x.status === 'hazir' && !x.abId) x.abId = resolveAbonelik(x.record); });
       render(containerRef);
-    };
-    App.pages.tesisler.editTuketim(null, prefill);
+    });
   }
 
   App.pages = App.pages || {};

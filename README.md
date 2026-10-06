@@ -7,9 +7,9 @@ Lisanssız elektrik üretiminde tüketim/üretim tesislerinin fatura, mahsuplaş
 düzenli olarak **Yedek Al** ile JSON yedeği alın.
 
 ## Modüller
-- **Tesisler** — tüketim tesisleri ve bağlı üretim tesisleri.
+- **Tesisler** — tüketim tesisleri; altında birden çok abonelik (EIC, abone grubu, faturalar) ve üretim tesisleri (mahsuplaştığı aboneliklerle).
 - **Fatura Yükle** — PDF e-faturaları tarayıcıda okur (pdf.js), birleştirilmiş PDF’leri faturalara böler, aritmetik kontrolleri yapar, tesisle eşleştirip kaydeder. Desteklenen biçimler: CK Enerji Ortaklığı Toptan, CK Boğaziçi Perakende.
-- **Veriler** — tesise ait faturaların Excel benzeri tablosu (düzenleme, kopyala/yapıştır, geri al, CSV).
+- **Veriler** — aboneliğe (veya tesisin tüm aboneliklerine) ait faturaların Excel benzeri tablosu (düzenleme, kopyala/yapıştır, geri al, CSV).
 
 ## Geliştirme
 - `js/fatura-parser.js` ayrıştırıcıyı test etmek için: `node tests/parser.test.js <fatura.pdf>`

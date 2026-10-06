@@ -1,5 +1,6 @@
 /* Veri katmanı: tüm veriler tarayıcıda localStorage'da tek JSON olarak tutulur.
-   Yedekleme/taşıma için JSON dışa/içe aktarma vardır. */
+   Yedekleme/taşıma için JSON dışa/içe aktarma vardır.
+   Yapı: Tüketim Tesisi → Abonelikler (EIC, abone grubu, faturalar) + Üretim Tesisleri (abonelikIds ile mahsuplaştığı abonelikler). */
 (function (root) {
   'use strict';
   var U = root.App.util;
@@ -7,8 +8,17 @@
   var listeners = [];
 
   function empty() {
-    return { version: 1, tuketimTesisleri: [], uretimTesisleri: [], faturalar: [] };
+    return { version: 2, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [] };
   }
+
+  // Eksik koleksiyonları ekler; sürüm numarasına dokunmaz (eski veri sürüm 1 sayılır).
+  function fillDefaults(d) {
+    var e = empty();
+    Object.keys(e).forEach(function (k) { if (k !== 'version' && d[k] === undefined) d[k] = e[k]; });
+  }
+
+  var ABONELIK_ALANLARI = ['unvan', 'vkn', 'vergiDairesi', 'aboneGrubu', 'gerilim', 'tarifeTerim', 'tarifeZaman', 'serbestTuketici',
+    'tedarikci', 'dagitimSirketi', 'tuketiciGrubuFatura', 'eic', 'sozlesmeNo', 'tesisatNo', 'sozlesmeGucu', 'carpan', 'oncekiYilTuketim'];
 
   var db = load();
 
@@ -17,19 +27,38 @@
       var raw = localStorage.getItem(KEY);
       if (raw) {
         var d = JSON.parse(raw);
-        var e = empty();
-        Object.keys(e).forEach(function (k) { if (d[k] === undefined) d[k] = e[k]; });
+        fillDefaults(d);
         migrate(d);
         return d;
       }
     } catch (err) {
       console.error('Veri okunamadı', err);
+      // Okunamayan veriyi kaybetmemek için ayrı bir anahtara kopyala
+      try { localStorage.setItem(KEY + '.okunamayan.' + Date.now(), localStorage.getItem(KEY)); } catch (e2) { /* yer yok */ }
+      setTimeout(function () { alert('Kayıtlı veriler okunamadı. Ham veri tarayıcıda ayrıca saklandı; lütfen bu durumu bildirin.\n' + err.message); }, 0);
     }
     return empty();
   }
 
+  // Sürüm 1'de abonelik bilgileri tüketim tesisinin üzerindeydi; her tesis için bir abonelik oluşturulur.
+  function migrateV2(d) {
+    // load() boş koleksiyonları önceden eklediği için sürüm numarasına bakılır
+    if ((d.version || 1) >= 2) return;
+    d.abonelikler = d.abonelikler || [];
+    d.tuketimTesisleri.forEach(function (t) {
+      var a = { id: U.uid('ab'), tuketimTesisId: t.id, ad: t.ad, olusturma: new Date().toISOString() };
+      ABONELIK_ALANLARI.forEach(function (k) { if (t[k] !== undefined) { a[k] = t[k]; delete t[k]; } });
+      if (t.adres) a.adres = t.adres;
+      d.abonelikler.push(a);
+      d.faturalar.forEach(function (f) { if (f.tuketimTesisId === t.id && !f.abonelikId) f.abonelikId = a.id; });
+      d.uretimTesisleri.forEach(function (u) { if (u.tuketimTesisId === t.id && !u.abonelikIds) u.abonelikIds = [a.id]; });
+    });
+    d.version = 2;
+  }
+
   // Eski sürüm alan adlarını yenilerine taşır.
   function migrate(d) {
+    migrateV2(d);
     d.faturalar.forEach(function (f) {
       [['ekTuketimKwh', 'ekTekKwh'], ['ekTuketimBirim', 'ekTekBirim'], ['ekTuketimTutar', 'ekTekTutar']].forEach(function (m) {
         if (f[m[0]] !== undefined) { if (f[m[1]] === undefined && f[m[0]]) f[m[1]] = f[m[0]]; delete f[m[0]]; }
@@ -63,17 +92,46 @@
   }
   function tuketimDelete(id) {
     db.tuketimTesisleri = db.tuketimTesisleri.filter(function (t) { return t.id !== id; });
+    db.abonelikler = db.abonelikler.filter(function (a) { return a.tuketimTesisId !== id; });
     db.uretimTesisleri = db.uretimTesisleri.filter(function (u) { return u.tuketimTesisId !== id; });
     db.faturalar = db.faturalar.filter(function (f) { return f.tuketimTesisId !== id; });
     save();
   }
-  // Faturadaki EIC / sözleşme no ile eşleşen tesisi bulur.
-  function tuketimMatch(rec) {
+
+  // --- Abonelikler
+  function abonelikList(tuketimTesisId) {
+    return db.abonelikler.filter(function (a) { return !tuketimTesisId || a.tuketimTesisId === tuketimTesisId; })
+      .sort(function (a, b) { return String(a.ad || '').localeCompare(String(b.ad || ''), 'tr'); });
+  }
+  function abonelikGet(id) { return db.abonelikler.find(function (a) { return a.id === id; }) || null; }
+  function abonelikSave(a) {
+    if (!a.id) { a.id = U.uid('ab'); a.olusturma = new Date().toISOString(); db.abonelikler.push(a); }
+    else {
+      var i = db.abonelikler.findIndex(function (x) { return x.id === a.id; });
+      var eski = db.abonelikler[i];
+      db.abonelikler[i] = a;
+      // Abonelik başka tesise taşındıysa faturaları da taşı, eski tesisin üretim bağlantılarından çıkar
+      if (eski && eski.tuketimTesisId !== a.tuketimTesisId) {
+        db.faturalar.forEach(function (f) { if (f.abonelikId === a.id) f.tuketimTesisId = a.tuketimTesisId; });
+        db.uretimTesisleri.forEach(function (u) { if (u.abonelikIds) u.abonelikIds = u.abonelikIds.filter(function (x) { return x !== a.id; }); });
+      }
+    }
+    save();
+    return a;
+  }
+  function abonelikDelete(id) {
+    db.abonelikler = db.abonelikler.filter(function (a) { return a.id !== id; });
+    db.faturalar = db.faturalar.filter(function (f) { return f.abonelikId !== id; });
+    db.uretimTesisleri.forEach(function (u) { if (u.abonelikIds) u.abonelikIds = u.abonelikIds.filter(function (x) { return x !== id; }); });
+    save();
+  }
+  // Faturadaki EIC / sözleşme no / tesisat no ile eşleşen aboneliği bulur.
+  function abonelikMatch(rec) {
     var clean = function (s) { return String(s || '').replace(/\s/g, '').toUpperCase(); };
-    return db.tuketimTesisleri.find(function (t) {
-      return (rec.eic && clean(t.eic) === clean(rec.eic)) ||
-             (rec.sozlesmeNo && clean(t.sozlesmeNo) === clean(rec.sozlesmeNo));
-    }) || null;
+    var by = function (key) {
+      return rec[key] ? db.abonelikler.find(function (a) { return a[key] && clean(a[key]) === clean(rec[key]); }) : null;
+    };
+    return by('eic') || by('sozlesmeNo') || by('tesisatNo') || null;
   }
 
   // --- Üretim tesisleri
@@ -92,15 +150,15 @@
     save();
   }
 
-  // --- Faturalar
-  function faturaList(tuketimTesisId) {
-    return db.faturalar.filter(function (f) { return f.tuketimTesisId === tuketimTesisId; })
+  // --- Faturalar (abonelikId verilirse yalnız o aboneliğin faturaları)
+  function faturaList(tuketimTesisId, abonelikId) {
+    return db.faturalar.filter(function (f) { return (!tuketimTesisId || f.tuketimTesisId === tuketimTesisId) && (!abonelikId || f.abonelikId === abonelikId); })
       .sort(function (a, b) { return String(a.donem || '').localeCompare(String(b.donem || '')) || String(a.faturaNo || '').localeCompare(String(b.faturaNo || '')); });
   }
   function faturaGet(id) { return db.faturalar.find(function (f) { return f.id === id; }) || null; }
-  function faturaFindDuplicate(tuketimTesisId, rec) {
+  function faturaFindDuplicate(abonelikId, rec) {
     return db.faturalar.find(function (f) {
-      return f.tuketimTesisId === tuketimTesisId && f.id !== rec.id &&
+      return f.abonelikId === abonelikId && f.id !== rec.id &&
         ((rec.faturaNo && f.faturaNo === rec.faturaNo) || (!rec.faturaNo && rec.donem && f.donem === rec.donem));
     }) || null;
   }
@@ -124,28 +182,29 @@
   function importJSON(text, mode) {
     var d = JSON.parse(text);
     if (!d || !Array.isArray(d.tuketimTesisleri)) throw new Error('Geçerli bir Mahsupla yedeği değil.');
+    fillDefaults(d);
     if (mode === 'merge') {
-      ['tuketimTesisleri', 'uretimTesisleri', 'faturalar'].forEach(function (k) {
+      migrate(d);
+      ['tuketimTesisleri', 'abonelikler', 'uretimTesisleri', 'faturalar'].forEach(function (k) {
         var ids = {};
         db[k].forEach(function (x) { ids[x.id] = true; });
         (d[k] || []).forEach(function (x) { if (!ids[x.id]) db[k].push(x); });
       });
     } else {
-      var e = empty();
-      Object.keys(e).forEach(function (k) { if (d[k] === undefined) d[k] = e[k]; });
       migrate(d);
       db = d;
     }
     save();
   }
   function stats() {
-    return { tuketim: db.tuketimTesisleri.length, uretim: db.uretimTesisleri.length, fatura: db.faturalar.length,
+    return { tuketim: db.tuketimTesisleri.length, abonelik: db.abonelikler.length, uretim: db.uretimTesisleri.length, fatura: db.faturalar.length,
              bytes: (localStorage.getItem(KEY) || '').length };
   }
 
   root.App.store = {
     onChange: onChange, save: save,
-    tuketimList: tuketimList, tuketimGet: tuketimGet, tuketimSave: tuketimSave, tuketimDelete: tuketimDelete, tuketimMatch: tuketimMatch,
+    tuketimList: tuketimList, tuketimGet: tuketimGet, tuketimSave: tuketimSave, tuketimDelete: tuketimDelete,
+    abonelikList: abonelikList, abonelikGet: abonelikGet, abonelikSave: abonelikSave, abonelikDelete: abonelikDelete, abonelikMatch: abonelikMatch,
     uretimList: uretimList, uretimGet: uretimGet, uretimSave: uretimSave, uretimDelete: uretimDelete,
     faturaList: faturaList, faturaGet: faturaGet, faturaSave: faturaSave, faturaDelete: faturaDelete, faturaFindDuplicate: faturaFindDuplicate,
     exportJSON: exportJSON, importJSON: importJSON, stats: stats

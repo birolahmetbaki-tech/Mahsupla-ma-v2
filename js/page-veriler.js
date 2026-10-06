@@ -9,7 +9,7 @@
 
   var PREF_KEY = 'mahsupla.veriler.prefs';
   var prefs = loadPrefs();
-  var state = { tt: null, records: [], fields: [], sel: null, anchor: null, editing: null, undo: [] };
+  var state = { tt: null, ab: 'tum', records: [], fields: [], sel: null, anchor: null, editing: null, undo: [] };
   var containerRef = null;
 
   var NO_SUM = { gecmisYilKwh: 1, cariYilKwh: 1, ortGunlukKwh: 1, c_limit2x: 1, carpan: 1, kdvOrani: 1 };
@@ -32,7 +32,10 @@
   }
 
   function loadData() {
-    var all = state.tt ? S.faturaList(state.tt) : [];
+    var all = state.tt ? S.faturaList(state.tt, state.ab === 'tum' ? null : state.ab) : [];
+    state.abNames = {};
+    S.abonelikList(state.tt).forEach(function (a) { state.abNames[a.id] = a.ad; });
+    state.multiAb = state.ab === 'tum' && Object.keys(state.abNames).length > 1;
     state.years = Array.from(new Set(all.map(function (r) { return String(r.donem || '').slice(0, 4); }).filter(Boolean))).sort();
     state.allRecords = prefs.yil === 'tum' ? all : all.filter(function (r) { return String(r.donem || '').indexOf(prefs.yil) === 0; });
     state.records = state.allRecords.filter(function (r) { return !prefs.hiddenRecs[r.id]; });
@@ -108,7 +111,7 @@
     var notes = recs.map(function () { return []; });
     recs.forEach(function (a, i) {
       recs.forEach(function (b, j) {
-        if (j <= i) return;
+        if (j <= i || a.abonelikId !== b.abonelikId) return;
         if (a.donem && a.donem === b.donem) {
           notes[i].push('Aynı dönemde başka fatura: ' + (b.faturaNo || '—'));
           notes[j].push('Aynı dönemde başka fatura: ' + (a.faturaNo || '—'));
@@ -125,6 +128,7 @@
   function headLabel(ri) {
     var rec = state.records[ri];
     var label = U.escapeHtml(U.donemLabel(rec.donem) || '(dönem yok)');
+    if (state.multiAb) label += '<small class="abn">' + U.escapeHtml(state.abNames[rec.abonelikId] || '?') + '</small>';
     var n = state.notes[ri];
     return n.length ? '<span class="warn-mark" title="' + U.escapeHtml(n.join('\n')) + '">⚠</span> ' + label : label;
   }
@@ -172,8 +176,10 @@
   function render(container, params) {
     containerRef = container;
     var list = S.tuketimList();
-    if (params && params.tt) state.tt = params.tt;
-    if (!state.tt || !S.tuketimGet(state.tt)) state.tt = list.length ? list[0].id : null;
+    if (params && params.tt) { if (params.tt !== state.tt) state.ab = 'tum'; state.tt = params.tt; }
+    if (params && params.ab) state.ab = params.ab;
+    if (!state.tt || !S.tuketimGet(state.tt)) { state.tt = list.length ? list[0].id : null; state.ab = 'tum'; }
+    if (state.ab !== 'tum' && !S.abonelikGet(state.ab)) state.ab = 'tum';
     loadData();
 
     container.innerHTML = '';
@@ -193,9 +199,19 @@
       if (t.id === state.tt) o.selected = true;
       sel.appendChild(o);
     });
-    sel.onchange = function () { state.tt = sel.value; state.sel = state.anchor = null; state.undo = []; location.hash = '#/veriler?tt=' + state.tt; };
+    sel.onchange = function () { state.sel = state.anchor = null; state.undo = []; location.hash = '#/veriler?tt=' + sel.value + '&ab=tum'; };
     bar.appendChild(UI.el('label', { class: 'inline' }, '<b>Veriler</b> —'));
     bar.appendChild(sel);
+    var abSel = UI.el('select', { title: 'Abonelik' });
+    var abs = S.abonelikList(state.tt);
+    abSel.appendChild(UI.el('option', { value: 'tum' }, 'Tüm abonelikler (' + abs.length + ')'));
+    abs.forEach(function (a) {
+      var o = UI.el('option', { value: a.id }, U.escapeHtml(a.ad + (a.eic ? ' · ' + a.eic : '')));
+      if (a.id === state.ab) o.selected = true;
+      abSel.appendChild(o);
+    });
+    abSel.onchange = function () { state.sel = state.anchor = null; state.undo = []; location.hash = '#/veriler?tt=' + state.tt + '&ab=' + abSel.value; };
+    bar.appendChild(abSel);
 
     var yil = UI.el('select', { title: 'Yıl filtresi' });
     yil.appendChild(UI.el('option', { value: 'tum' }, 'Tüm yıllar'));
@@ -215,7 +231,7 @@
     bar.appendChild(UI.el('button', { class: 'btn sm' + (hc.fields + hc.recs ? ' has-hidden' : ''), title: 'Satır ve sütunları gizle / göster', onclick: manageHidden },
       '👁 Gizle / Göster' + (hc.fields + hc.recs ? ' <b>(' + (hc.fields ? hc.fields + ' alan' : '') + (hc.fields && hc.recs ? ', ' : '') + (hc.recs ? hc.recs + ' fatura' : '') + ' gizli)</b>' : '')));
     bar.appendChild(UI.el('button', { class: 'btn sm', onclick: exportCSV, title: 'Görünen satır ve sütunları indirir' }, 'CSV (Excel) indir'));
-    bar.appendChild(UI.el('a', { class: 'btn sm', href: '#/yukle?tt=' + state.tt }, 'Fatura Yükle'));
+    bar.appendChild(UI.el('a', { class: 'btn sm', href: '#/yukle' + (state.ab !== 'tum' ? '?ab=' + state.ab : '') }, 'Fatura Yükle'));
     page.appendChild(bar);
 
     // Grup görünürlüğü
@@ -247,7 +263,7 @@
     }
 
     if (!state.records.length) {
-      page.appendChild(UI.el('div', { class: 'empty' }, '<p>Bu tesis için kayıtlı fatura yok.</p><a class="btn primary" href="#/yukle?tt=' + state.tt + '">Fatura Yükle</a> <button class="btn" id="bosKayit">+ Elle kayıt ekle</button>'));
+      page.appendChild(UI.el('div', { class: 'empty' }, '<p>' + (abs.length ? 'Kayıtlı fatura yok.' : 'Bu tesiste abonelik yok; önce Tesisler sayfasından abonelik ekleyin.') + '</p><a class="btn primary" href="#/yukle' + (state.ab !== 'tum' ? '?ab=' + state.ab : '') + '">Fatura Yükle</a> <button class="btn" id="bosKayit">+ Elle kayıt ekle</button>'));
       container.appendChild(page);
       page.querySelector('#bosKayit').onclick = addRow;
       return;
@@ -404,7 +420,7 @@
     var ref = cellRef(state.sel.r, state.sel.c);
     var f = state.fields[ref.fi], rec = state.records[ref.ri];
     if (!f || !rec) return;
-    name.textContent = U.donemLabel(rec.donem) + ' › ' + f.label;
+    name.textContent = (state.multiAb ? (state.abNames[rec.abonelikId] || '?') + ' › ' : '') + U.donemLabel(rec.donem) + ' › ' + f.label;
     inp.value = editText(f, value(ref.ri, ref.fi));
     inp.readOnly = !!f.calc;
     inp.title = f.calc ? 'Hesaplanan alan (salt okunur)' : '';
@@ -650,9 +666,12 @@
   }
 
   function addRow() {
+    var abs = S.abonelikList(state.tt);
+    var abId = state.ab !== 'tum' ? state.ab : (abs.length === 1 ? abs[0].id : null);
+    if (!abId) { UI.toast(abs.length ? 'Elle kayıt için önce üstten bir abonelik seçin.' : 'Önce Tesisler sayfasından abonelik ekleyin.', 'err'); return; }
     var now = new Date();
     var donem = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2);
-    var rec = S.faturaSave({ tuketimTesisId: state.tt, donem: donem, kaynak: { elle: true } });
+    var rec = S.faturaSave({ tuketimTesisId: state.tt, abonelikId: abId, donem: donem, kaynak: { elle: true } });
     prefs.yil = 'tum'; savePrefs();
     render(containerRef);
     var ri = state.records.findIndex(function (x) { return x.id === rec.id; });
@@ -790,11 +809,11 @@
     var t = S.tuketimGet(state.tt);
     var fields = state.fields;
     var esc = function (s) { s = String(s === null || s === undefined ? '' : s); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    var lines = [['Dönem'].concat(fields.map(function (f) { return f.label + (f.unit ? ' (' + f.unit + ')' : ''); })).map(esc).join(';')];
+    var lines = [['Abonelik', 'Dönem'].concat(fields.map(function (f) { return f.label + (f.unit ? ' (' + f.unit + ')' : ''); })).map(esc).join(';')];
     state.records.forEach(function (rec, ri) {
-      lines.push([rec.donem].concat(fields.map(function (f, fi) { return editText(f, value(ri, fi)); })).map(esc).join(';'));
+      lines.push([state.abNames[rec.abonelikId] || '', rec.donem].concat(fields.map(function (f, fi) { return editText(f, value(ri, fi)); })).map(esc).join(';'));
     });
-    U.download((t ? t.ad : 'veriler').replace(/[^\wçğıöşüÇĞİÖŞÜ -]/g, '') + ' - Veriler.csv', '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+    U.download((t ? t.ad : 'veriler') + (state.ab !== 'tum' && state.abNames[state.ab] ? ' - ' + state.abNames[state.ab] : '').replace(/[^\wçğıöşüÇĞİÖŞÜ -]/g, '') + ' - Veriler.csv', '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
   }
 
   App.pages = App.pages || {};
