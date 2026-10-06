@@ -2591,10 +2591,12 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 
   function scrollIntoView(td) {
     var g = gridEl();
-    var stickyLeft = g.querySelector('tbody th.rowh') ? g.querySelector('tbody th.rowh').offsetWidth : 0;
+    // Sabit sol sütunun genişliği köşe hücresinden ölçülür (grup satırı başlıkları tüm satırı kapladığı için kullanılamaz)
+    var corner = g.querySelector('thead th.corner');
+    var stickyLeft = corner ? corner.offsetWidth : 0;
     var stickyTop = g.querySelector('thead') ? g.querySelector('thead').offsetHeight : 0;
     var gr = g.getBoundingClientRect(), tr = td.getBoundingClientRect();
-    if (tr.left < gr.left + stickyLeft) g.scrollLeft -= (gr.left + stickyLeft - tr.left);
+    if (tr.left < gr.left + stickyLeft + 1) g.scrollLeft -= (gr.left + stickyLeft - tr.left + 2);
     else if (tr.right > gr.right) g.scrollLeft += tr.right - gr.right + 2;
     if (tr.top < gr.top + stickyTop) g.scrollTop -= (gr.top + stickyTop - tr.top);
     else if (tr.bottom > gr.bottom - 14) g.scrollTop += tr.bottom - gr.bottom + 16;
