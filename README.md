@@ -3,7 +3,7 @@
 Lisanssız elektrik üretiminde tüketim/üretim tesislerinin fatura, mahsuplaşma ve satış değerlerini kaydetme, izleme ve analiz programı.
 
 ## Çalıştırma
-`index.html` dosyasını tarayıcıda açın (sunucu gerekmez). Veriler tarayıcıda (localStorage) saklanır;
+`index.html` dosyasını tarayıcıda açın (sunucu gerekmez). Tek dosyalık sürüm: `dist/Mahsupla.html` (`python3 tools/build-single.py` ile üretilir). Veriler tarayıcıda (localStorage) saklanır;
 düzenli olarak **Yedek Al** ile JSON yedeği alın.
 
 ## Modüller
