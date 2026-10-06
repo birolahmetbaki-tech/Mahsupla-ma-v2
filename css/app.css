@@ -207,3 +207,26 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
   .topbar { gap: 10px; height: auto; flex-wrap: wrap; padding: 8px 12px; }
   main { padding: 10px; }
 }
+
+/* Gizleme */
+.sheet button.unhide { font: 600 10px var(--font); color: var(--accent); background: var(--accent-weak); border: 1px solid #a9c6f5; border-radius: 3px; padding: 0 4px; margin-right: 4px; cursor: pointer; line-height: 14px; vertical-align: middle; }
+.sheet button.unhide.trail { margin: 0 0 0 4px; }
+.sheet button.unhide:hover { background: var(--accent); color: #fff; }
+.btn.has-hidden { border-color: #a9c6f5; color: var(--accent); }
+.ctxmenu { position: fixed; z-index: 70; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 4px; min-width: 260px; }
+.ctxmenu button { display: flex; justify-content: space-between; gap: 16px; width: 100%; text-align: left; font: 13px var(--font); border: 0; background: none; padding: 7px 10px; border-radius: 5px; cursor: pointer; color: var(--ink); }
+.ctxmenu button:hover:not(:disabled) { background: var(--accent-weak); }
+.ctxmenu button:disabled { color: #aab3bd; cursor: default; }
+.ctxmenu button i { color: var(--muted); font-style: normal; }
+.ctxmenu kbd { font: 11px var(--font); color: var(--muted); }
+.ctx-sep { height: 1px; background: var(--grid); margin: 4px 0; }
+.hm-cols { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; }
+.hm-box h4 { margin: 0 0 6px; }
+.hm-tools { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.hm-list { border: 1px solid var(--grid); border-radius: 6px; padding: 6px 8px; max-height: 52vh; overflow: auto; }
+.hm-group { display: block; font-weight: 700; font-size: 12px; margin: 8px 0 2px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.hm-group:first-child { margin-top: 0; }
+.hm-group.off { opacity: .6; }
+.hm-item { display: block; font-size: 13px; padding: 2px 0 2px 14px; }
+.hm-item i, .hm-group i { color: var(--muted); font-style: normal; font-size: 11px; text-transform: none; }
+@media (max-width: 860px) { .hm-cols { grid-template-columns: 1fr; } }

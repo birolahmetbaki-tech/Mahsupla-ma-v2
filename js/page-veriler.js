@@ -1,6 +1,8 @@
 /* Veriler sayfası: tüketim tesisine ait fatura kayıtlarını Excel benzeri tabloda gösterir ve düzenletir.
    Klavye: oklar, Tab/Enter (gezinme), F2 veya yazmaya başlama (düzenleme), Esc (vazgeç), Delete (temizle),
-   Ctrl+C / Ctrl+V (Excel ile kopyala-yapıştır), Ctrl+Z (geri al), Shift+ok veya sürükleme (alan seçimi). */
+   Ctrl+C / Ctrl+V (Excel ile kopyala-yapıştır), Ctrl+Z (geri al), Shift+ok veya sürükleme (alan seçimi),
+   Ctrl+9 / Ctrl+0 (seçili satırları / sütunları gizle), Ctrl+Shift+9 / Ctrl+Shift+0 (gizlenenleri göster).
+   Gizleme yalnız görünümü etkiler: alanlar tüm tesislerde, faturalar kayıt bazında gizlenir; veri silinmez. */
 (function (root) {
   'use strict';
   var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields;
@@ -13,8 +15,11 @@
   var NO_SUM = { gecmisYilKwh: 1, cariYilKwh: 1, ortGunlukKwh: 1, c_limit2x: 1, carpan: 1, kdvOrani: 1 };
 
   function loadPrefs() {
-    var d = { orient: 'cols', hidden: {}, yil: 'tum' };
-    try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch (e) { return d; }
+    var d = { orient: 'cols', hidden: {}, yil: 'tum', hiddenFields: {}, hiddenRecs: {} };
+    try { d = Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch (e) { /* varsayılan */ }
+    d.hiddenFields = d.hiddenFields || {};
+    d.hiddenRecs = d.hiddenRecs || {};
+    return d;
   }
   function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* önemsiz */ } }
 
@@ -29,10 +34,73 @@
   function loadData() {
     var all = state.tt ? S.faturaList(state.tt) : [];
     state.years = Array.from(new Set(all.map(function (r) { return String(r.donem || '').slice(0, 4); }).filter(Boolean))).sort();
-    state.records = prefs.yil === 'tum' ? all : all.filter(function (r) { return String(r.donem || '').indexOf(prefs.yil) === 0; });
+    state.allRecords = prefs.yil === 'tum' ? all : all.filter(function (r) { return String(r.donem || '').indexOf(prefs.yil) === 0; });
+    state.records = state.allRecords.filter(function (r) { return !prefs.hiddenRecs[r.id]; });
     state.calc = state.records.map(function (r) { return F.compute(r); });
     state.notes = recordNotes(state.records);
-    state.fields = F.FIELDS.filter(function (f) { return !prefs.hidden[f.group]; });
+    state.allFields = F.FIELDS.filter(function (f) { return !prefs.hidden[f.group]; });
+    state.fields = state.allFields.filter(function (f) { return !prefs.hiddenFields[f.key]; });
+    state.gapFields = gaps(state.allFields, function (f) { return prefs.hiddenFields[f.key]; }, function (f) { return f.key; });
+    state.gapRecs = gaps(state.allRecords, function (r) { return prefs.hiddenRecs[r.id]; }, function (r) { return r.id; });
+  }
+
+  // Gizli öğeleri, ardından gelen görünür öğeye bağlar: { before: [[anahtarlar] (görünür öğe başına)], after: [sondaki gizliler] }
+  function gaps(list, isHidden, keyOf) {
+    var before = [], pending = [];
+    list.forEach(function (x) {
+      if (isHidden(x)) pending.push(keyOf(x));
+      else { before.push(pending); pending = []; }
+    });
+    return { before: before, after: pending };
+  }
+
+  // --- Gizleme / gösterme
+  function hiddenCounts() {
+    var nf = state.allFields.filter(function (f) { return prefs.hiddenFields[f.key]; }).length;
+    var nr = state.allRecords.filter(function (r) { return prefs.hiddenRecs[r.id]; }).length;
+    return { fields: nf, recs: nr };
+  }
+  function setHidden(kind, keys, hide) {
+    var map = kind === 'field' ? prefs.hiddenFields : prefs.hiddenRecs;
+    keys.forEach(function (k) { if (hide) map[k] = true; else delete map[k]; });
+    savePrefs();
+    state.sel = state.anchor = null;
+    render(containerRef);
+  }
+  // Seçili aralıktaki satır veya sütunlara karşılık gelen alan/fatura anahtarları
+  function selectedKeys(axis) {
+    if (!state.sel) return null;
+    var rg = range();
+    var a = axis === 'row' ? rg.r0 : rg.c0, b = axis === 'row' ? rg.r1 : rg.c1;
+    var isField = (axis === 'row') === (prefs.orient === 'cols');
+    var keys = [];
+    for (var i = a; i <= b; i++) keys.push(isField ? state.fields[i].key : state.records[i].id);
+    return { kind: isField ? 'field' : 'rec', keys: keys };
+  }
+  function hideAxis(axis) {
+    var s = selectedKeys(axis);
+    if (!s) return;
+    var visible = s.kind === 'field' ? state.fields.length : state.records.length;
+    if (s.keys.length >= visible) { UI.toast('Tüm ' + (axis === 'row' ? 'satırlar' : 'sütunlar') + ' gizlenemez.', 'err'); return; }
+    setHidden(s.kind, s.keys, true);
+    UI.toast(s.keys.length + ' ' + (axis === 'row' ? 'satır' : 'sütun') + ' gizlendi. Göstermek için ⋯ işaretine tıklayın.', 'ok');
+  }
+  function unhideAxis(axis) {
+    var isField = (axis === 'row') === (prefs.orient === 'cols');
+    if (isField) prefs.hiddenFields = {}; else state.allRecords.forEach(function (r) { delete prefs.hiddenRecs[r.id]; });
+    savePrefs(); state.sel = state.anchor = null; render(containerRef);
+  }
+  function axisWords() {
+    // cols düzeninde satırlar = alanlar, sütunlar = faturalar
+    return prefs.orient === 'cols' ? { row: 'alan', col: 'fatura' } : { row: 'fatura', col: 'alan' };
+  }
+  function gapButton(kind, keys, pos) {
+    if (!keys || !keys.length) return '';
+    var names = kind === 'field'
+      ? keys.map(function (k) { return F.byKey[k].label; })
+      : keys.map(function (id) { var r = state.allRecords.find(function (x) { return x.id === id; }); return r ? U.donemLabel(r.donem) + (r.faturaNo ? ' (' + r.faturaNo + ')' : '') : id; });
+    return '<button type="button" class="unhide ' + (pos || '') + '" data-kind="' + kind + '" data-keys="' + U.escapeHtml(keys.join(',')) + '" title="' +
+      U.escapeHtml(keys.length + ' gizli ' + (kind === 'field' ? 'alan' : 'fatura') + ':\n' + names.join('\n') + '\n\nGöstermek için tıklayın') + '">⋯' + keys.length + '</button>';
   }
 
   // Kayıtlar arası uyarılar: aynı dönemde birden fazla fatura, çakışan okuma aralıkları, kontrol hataları
@@ -143,7 +211,10 @@
     bar.appendChild(UI.el('span', { class: 'sep' }));
     bar.appendChild(UI.el('button', { class: 'btn sm', onclick: addRow }, '+ Boş kayıt'));
     bar.appendChild(UI.el('button', { class: 'btn sm danger', onclick: deleteSelected }, 'Seçili kaydı sil'));
-    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: exportCSV }, 'CSV (Excel) indir'));
+    var hc = hiddenCounts();
+    bar.appendChild(UI.el('button', { class: 'btn sm' + (hc.fields + hc.recs ? ' has-hidden' : ''), title: 'Satır ve sütunları gizle / göster', onclick: manageHidden },
+      '👁 Gizle / Göster' + (hc.fields + hc.recs ? ' <b>(' + (hc.fields ? hc.fields + ' alan' : '') + (hc.fields && hc.recs ? ', ' : '') + (hc.recs ? hc.recs + ' fatura' : '') + ' gizli)</b>' : '')));
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: exportCSV, title: 'Görünen satır ve sütunları indirir' }, 'CSV (Excel) indir'));
     bar.appendChild(UI.el('a', { class: 'btn sm', href: '#/yukle?tt=' + state.tt }, 'Fatura Yükle'));
     page.appendChild(bar);
 
@@ -166,6 +237,14 @@
     });
     fbar.appendChild(fx);
     page.appendChild(fbar);
+
+    if ((state.allRecords.length && !state.records.length) || !state.fields.length) {
+      var e = UI.el('div', { class: 'empty' }, '<p>Tüm ' + (!state.fields.length ? 'alanlar' : 'faturalar') + ' gizli.</p>');
+      e.appendChild(UI.el('button', { class: 'btn primary', onclick: function () { prefs.hiddenFields = {}; state.allRecords.forEach(function (r) { delete prefs.hiddenRecs[r.id]; }); savePrefs(); render(container); } }, 'Tümünü göster'));
+      page.appendChild(e);
+      container.appendChild(page);
+      return;
+    }
 
     if (!state.records.length) {
       page.appendChild(UI.el('div', { class: 'empty' }, '<p>Bu tesis için kayıtlı fatura yok.</p><a class="btn primary" href="#/yukle?tt=' + state.tt + '">Fatura Yükle</a> <button class="btn" id="bosKayit">+ Elle kayıt ekle</button>'));
@@ -235,11 +314,15 @@
       html += '</tr><tr class="fld">';
       state.fields.forEach(function (f, fi) {
         html += '<th class="colh g-' + f.group + '" data-c="' + fi + '" style="min-width:' + (f.w || 96) + 'px" title="' + U.escapeHtml(f.label) + '">' +
-          U.escapeHtml(f.label) + (f.unit ? '<small>' + U.escapeHtml(f.unit) + '</small>' : '') + '</th>';
+          gapButton('field', state.gapFields.before[fi], 'lead') +
+          U.escapeHtml(f.label) + (f.unit ? '<small>' + U.escapeHtml(f.unit) + '</small>' : '') +
+          (fi === state.fields.length - 1 ? gapButton('field', state.gapFields.after, 'trail') : '') + '</th>';
       });
       html += '</tr></thead><tbody>';
       state.records.forEach(function (rec, ri) {
-        html += '<tr><th class="rowh" data-r="' + ri + '">' + headLabel(ri) + '<small class="fno">' + U.escapeHtml(rec.faturaNo || '') + '</small></th>';
+        html += '<tr><th class="rowh" data-r="' + ri + '">' + gapButton('rec', state.gapRecs.before[ri], 'lead') + headLabel(ri) +
+          '<small class="fno">' + U.escapeHtml(rec.faturaNo || '') + '</small>' +
+          (ri === state.records.length - 1 ? gapButton('rec', state.gapRecs.after, 'trail') : '') + '</th>';
         state.fields.forEach(function (f, fi) { html += cellHtml(ri, fi, ri, fi); });
         html += '</tr>';
       });
@@ -248,7 +331,11 @@
       html += '</tr></tfoot>';
     } else {
       html += '<thead><tr class="fld"><th class="corner">Alan</th>';
-      state.records.forEach(function (rec, ri) { html += '<th class="colh" data-c="' + ri + '">' + headLabel(ri) + '<small>' + U.escapeHtml(rec.faturaNo || '') + '</small></th>'; });
+      state.records.forEach(function (rec, ri) {
+        html += '<th class="colh" data-c="' + ri + '">' + gapButton('rec', state.gapRecs.before[ri], 'lead') + headLabel(ri) +
+          '<small>' + U.escapeHtml(rec.faturaNo || '') + '</small>' +
+          (ri === state.records.length - 1 ? gapButton('rec', state.gapRecs.after, 'trail') : '') + '</th>';
+      });
       html += '<th class="colh total">Toplam</th></tr></thead><tbody>';
       var lastGroup = null;
       state.fields.forEach(function (f, fi) {
@@ -256,7 +343,9 @@
           html += '<tr class="grp-row"><th class="rowh g-' + f.group + '" colspan="' + (state.records.length + 2) + '">' + U.escapeHtml(groupLabel(f.group)) + '</th></tr>';
           lastGroup = f.group;
         }
-        html += '<tr><th class="rowh g-' + f.group + '" data-r="' + fi + '" title="' + U.escapeHtml(f.label) + '">' + U.escapeHtml(f.label) + (f.unit ? ' <small>' + U.escapeHtml(f.unit) + '</small>' : '') + '</th>';
+        html += '<tr><th class="rowh g-' + f.group + '" data-r="' + fi + '" title="' + U.escapeHtml(f.label) + '">' + gapButton('field', state.gapFields.before[fi], 'lead') +
+          U.escapeHtml(f.label) + (f.unit ? ' <small>' + U.escapeHtml(f.unit) + '</small>' : '') +
+          (fi === state.fields.length - 1 ? gapButton('field', state.gapFields.after, 'trail') : '') + '</th>';
         state.records.forEach(function (rec, ri) { html += cellHtml(ri, fi, fi, ri); });
         html += '<td class="num total">' + totalFor(fi) + '</td></tr>';
       });
@@ -428,6 +517,9 @@
   function bindGrid(g) {
     var dragging = false;
     g.addEventListener('mousedown', function (e) {
+      var ub = e.target.closest('button.unhide');
+      if (ub) { e.preventDefault(); e.stopPropagation(); setHidden(ub.dataset.kind, ub.dataset.keys.split(','), false); return; }
+      if (e.button === 2) return; // sağ tık seçimi bozmasın (bağlam menüsü aşağıda)
       var td = e.target.closest('td[data-r]');
       var rh = e.target.closest('th.rowh[data-r]');
       var ch = e.target.closest('th.colh[data-c]');
@@ -438,9 +530,12 @@
         if (e.shiftKey) state.sel = p; else { state.sel = p; state.anchor = { r: p.r, c: p.c }; }
         dragging = true;
       } else if (rh) {
-        state.anchor = { r: +rh.dataset.r, c: 0 }; state.sel = { r: +rh.dataset.r, c: d.cols - 1 };
+        // Shift ile başlık tıklanırsa satır aralığı genişler
+        var ar = e.shiftKey && state.anchor ? state.anchor.r : +rh.dataset.r;
+        state.anchor = { r: ar, c: 0 }; state.sel = { r: +rh.dataset.r, c: d.cols - 1 };
       } else if (ch) {
-        state.anchor = { r: 0, c: +ch.dataset.c }; state.sel = { r: d.rows - 1, c: +ch.dataset.c };
+        var ac = e.shiftKey && state.anchor ? state.anchor.c : +ch.dataset.c;
+        state.anchor = { r: 0, c: ac }; state.sel = { r: d.rows - 1, c: +ch.dataset.c };
       } else return;
       e.preventDefault();
       g.focus({ preventScroll: true });
@@ -453,6 +548,22 @@
     });
     document.addEventListener('mouseup', function () { dragging = false; });
     g.addEventListener('dblclick', function (e) { if (e.target.closest('td[data-r]')) startEdit(); });
+    g.addEventListener('contextmenu', function (e) {
+      var td = e.target.closest('td[data-r]'), rh = e.target.closest('th.rowh[data-r]'), ch = e.target.closest('th.colh[data-c]');
+      if (!td && !rh && !ch) return;
+      e.preventDefault();
+      // Tıklanan yer seçimin dışındaysa seçimi oraya taşı
+      var rg = state.sel ? range() : null, d = dims();
+      var r = td ? +td.dataset.r : rh ? +rh.dataset.r : null, c = td ? +td.dataset.c : ch ? +ch.dataset.c : null;
+      var inside = rg && (r === null || (r >= rg.r0 && r <= rg.r1)) && (c === null || (c >= rg.c0 && c <= rg.c1));
+      if (!inside) {
+        if (td) { state.sel = { r: r, c: c }; state.anchor = { r: r, c: c }; }
+        else if (rh) { state.anchor = { r: r, c: 0 }; state.sel = { r: r, c: d.cols - 1 }; }
+        else { state.anchor = { r: 0, c: c }; state.sel = { r: d.rows - 1, c: c }; }
+        paintSelection();
+      }
+      showMenu(e.clientX, e.clientY, { row: !!(td || rh), col: !!(td || ch) });
+    });
 
     g.addEventListener('keydown', function (e) {
       if (state.editing) return;
@@ -470,6 +581,11 @@
       else if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); clearRange(); }
       else if (ctrl && (k === 'c' || k === 'C')) { e.preventDefault(); copyRange(); }
       else if (ctrl && (k === 'z' || k === 'Z')) { e.preventDefault(); undo(); }
+      else if (ctrl && (e.code === 'Digit9' || e.code === 'Digit0')) {
+        e.preventDefault();
+        var ax = e.code === 'Digit9' ? 'row' : 'col';
+        if (e.shiftKey) unhideAxis(ax); else hideAxis(ax);
+      }
       else if (ctrl && (k === 'a' || k === 'A')) { e.preventDefault(); var d = dims(); state.anchor = { r: 0, c: 0 }; state.sel = { r: d.rows - 1, c: d.cols - 1 }; paintSelection(); }
       else if (!ctrl && !e.altKey && k.length === 1) { e.preventDefault(); startEdit(k); }
     });
@@ -559,6 +675,115 @@
       state.sel = state.anchor = null;
       UI.toast(ids.length + ' kayıt silindi.');
     });
+  }
+
+  // --- Bağlam menüsü
+  function closeMenu() { var m = document.getElementById('ctxmenu'); if (m) m.remove(); }
+  function showMenu(x, y, what) {
+    closeMenu();
+    var w = axisWords(), rg = range(), hc = hiddenCounts();
+    var nr = rg.r1 - rg.r0 + 1, nc = rg.c1 - rg.c0 + 1;
+    var rowHidden = prefs.orient === 'cols' ? hc.fields : hc.recs, colHidden = prefs.orient === 'cols' ? hc.recs : hc.fields;
+    var items = [];
+    if (what.row) items.push({ label: (nr > 1 ? nr + ' satırı' : 'Satırı') + ' gizle <i>(' + w.row + ')</i>', key: 'Ctrl+9', fn: function () { hideAxis('row'); } });
+    if (what.col) items.push({ label: (nc > 1 ? nc + ' sütunu' : 'Sütunu') + ' gizle <i>(' + w.col + ')</i>', key: 'Ctrl+0', fn: function () { hideAxis('col'); } });
+    items.push(null);
+    items.push({ label: 'Gizli satırları göster' + (rowHidden ? ' (' + rowHidden + ')' : ''), key: 'Ctrl+Shift+9', disabled: !rowHidden, fn: function () { unhideAxis('row'); } });
+    items.push({ label: 'Gizli sütunları göster' + (colHidden ? ' (' + colHidden + ')' : ''), key: 'Ctrl+Shift+0', disabled: !colHidden, fn: function () { unhideAxis('col'); } });
+    items.push(null);
+    items.push({ label: 'Gizle / Göster penceresi…', fn: manageHidden });
+    var m = UI.el('div', { class: 'ctxmenu', id: 'ctxmenu', role: 'menu' });
+    items.forEach(function (it) {
+      if (!it) { m.appendChild(UI.el('div', { class: 'ctx-sep' })); return; }
+      var b = UI.el('button', { type: 'button', role: 'menuitem' }, '<span>' + it.label + '</span>' + (it.key ? '<kbd>' + it.key + '</kbd>' : ''));
+      if (it.disabled) b.disabled = true;
+      b.onclick = function () { closeMenu(); it.fn(); };
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    var r = m.getBoundingClientRect();
+    m.style.left = Math.min(x, window.innerWidth - r.width - 8) + 'px';
+    m.style.top = Math.min(y, window.innerHeight - r.height - 8) + 'px';
+    setTimeout(function () {
+      document.addEventListener('mousedown', function h(ev) { if (!m.contains(ev.target)) { closeMenu(); document.removeEventListener('mousedown', h); } });
+    }, 0);
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+  root.addEventListener('hashchange', closeMenu);
+
+  // --- Gizle / Göster penceresi: alanlar (gruplu) ve faturalar için onay kutuları
+  function manageHidden() {
+    var body = UI.el('div', { class: 'hide-manager' });
+    var info = UI.el('p', { class: 'muted' }, 'İşaretli olanlar tabloda görünür. Alan ayarı tüm tesislerde, fatura ayarı yalnız o faturada geçerlidir. Veri silinmez.');
+    body.appendChild(info);
+    var cols = UI.el('div', { class: 'hm-cols' });
+
+    var fBox = UI.el('div', { class: 'hm-box' }, '<h4>Alanlar</h4>');
+    var fTools = UI.el('div', { class: 'hm-tools' });
+    fBox.appendChild(fTools);
+    var fList = UI.el('div', { class: 'hm-list' });
+    F.GROUPS.forEach(function (g) {
+      var fs = F.FIELDS.filter(function (f) { return f.group === g.id; });
+      if (!fs.length) return;
+      var gl = UI.el('label', { class: 'hm-group' + (prefs.hidden[g.id] ? ' off' : '') }, '<input type="checkbox" data-group="' + g.id + '"> ' + U.escapeHtml(g.label) + (prefs.hidden[g.id] ? ' <i>(grup kapalı)</i>' : ''));
+      fList.appendChild(gl);
+      fs.forEach(function (f) {
+        fList.appendChild(UI.el('label', { class: 'hm-item' }, '<input type="checkbox" data-field="' + f.key + '"' + (prefs.hiddenFields[f.key] ? '' : ' checked') + '> ' +
+          U.escapeHtml(f.label) + (f.unit ? ' <i>' + U.escapeHtml(f.unit) + '</i>' : '')));
+      });
+    });
+    fBox.appendChild(fList);
+
+    var rBox = UI.el('div', { class: 'hm-box' }, '<h4>Faturalar</h4>');
+    var rTools = UI.el('div', { class: 'hm-tools' });
+    rBox.appendChild(rTools);
+    var rList = UI.el('div', { class: 'hm-list' });
+    state.allRecords.forEach(function (r) {
+      rList.appendChild(UI.el('label', { class: 'hm-item' }, '<input type="checkbox" data-rec="' + r.id + '"' + (prefs.hiddenRecs[r.id] ? '' : ' checked') + '> ' +
+        U.escapeHtml(U.donemLabel(r.donem) || '(dönem yok)') + ' <i>' + U.escapeHtml(r.faturaNo || '') + '</i>'));
+    });
+    if (!state.allRecords.length) rList.appendChild(UI.el('p', { class: 'muted' }, 'Fatura yok.'));
+    rBox.appendChild(rList);
+    cols.appendChild(fBox);
+    cols.appendChild(rBox);
+    body.appendChild(cols);
+
+    function syncGroups() {
+      fList.querySelectorAll('input[data-group]').forEach(function (gi) {
+        var items = fList.querySelectorAll('input[data-field]');
+        var mine = Array.prototype.filter.call(items, function (i) { return F.byKey[i.dataset.field].group === gi.dataset.group; });
+        var on = mine.filter(function (i) { return i.checked; }).length;
+        gi.checked = on === mine.length; gi.indeterminate = on > 0 && on < mine.length;
+      });
+    }
+    fList.addEventListener('change', function (e) {
+      var gi = e.target.closest('input[data-group]');
+      if (gi) fList.querySelectorAll('input[data-field]').forEach(function (i) { if (F.byKey[i.dataset.field].group === gi.dataset.group) i.checked = gi.checked; });
+      syncGroups();
+    });
+    syncGroups();
+    function bulk(list, sel, val) { list.querySelectorAll(sel).forEach(function (i) { i.checked = val; }); syncGroups(); }
+    fTools.appendChild(UI.el('button', { type: 'button', class: 'btn xs', onclick: function () { bulk(fList, 'input[data-field]', true); } }, 'Tümü'));
+    fTools.appendChild(UI.el('button', { type: 'button', class: 'btn xs', onclick: function () { bulk(fList, 'input[data-field]', false); } }, 'Hiçbiri'));
+    fTools.appendChild(UI.el('button', { type: 'button', class: 'btn xs', title: 'Hesaplanan ve kontrol alanlarını gizle', onclick: function () {
+      fList.querySelectorAll('input[data-field]').forEach(function (i) { if (F.byKey[i.dataset.field].calc) i.checked = false; }); syncGroups();
+    } }, 'Hesaplananları gizle'));
+    rTools.appendChild(UI.el('button', { type: 'button', class: 'btn xs', onclick: function () { bulk(rList, 'input[data-rec]', true); } }, 'Tümü'));
+    rTools.appendChild(UI.el('button', { type: 'button', class: 'btn xs', onclick: function () { bulk(rList, 'input[data-rec]', false); } }, 'Hiçbiri'));
+
+    UI.openModal('Gizle / Göster', body, [
+      { label: 'Vazgeç', onclick: UI.closeModal },
+      { label: 'Uygula', class: 'primary', onclick: function () {
+        var hf = {};
+        fList.querySelectorAll('input[data-field]').forEach(function (i) { if (!i.checked) hf[i.dataset.field] = true; });
+        rList.querySelectorAll('input[data-rec]').forEach(function (i) { if (i.checked) delete prefs.hiddenRecs[i.dataset.rec]; else prefs.hiddenRecs[i.dataset.rec] = true; });
+        prefs.hiddenFields = hf;
+        savePrefs();
+        UI.closeModal();
+        state.sel = state.anchor = null;
+        render(containerRef);
+      } }
+    ]);
   }
 
   function exportCSV() {
