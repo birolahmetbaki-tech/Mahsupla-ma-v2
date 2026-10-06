@@ -19,12 +19,26 @@
         var d = JSON.parse(raw);
         var e = empty();
         Object.keys(e).forEach(function (k) { if (d[k] === undefined) d[k] = e[k]; });
+        migrate(d);
         return d;
       }
     } catch (err) {
       console.error('Veri okunamadı', err);
     }
     return empty();
+  }
+
+  // Eski sürüm alan adlarını yenilerine taşır.
+  function migrate(d) {
+    d.faturalar.forEach(function (f) {
+      [['ekTuketimKwh', 'ekTekKwh'], ['ekTuketimBirim', 'ekTekBirim'], ['ekTuketimTutar', 'ekTekTutar']].forEach(function (m) {
+        if (f[m[0]] !== undefined) { if (f[m[1]] === undefined && f[m[0]]) f[m[1]] = f[m[0]]; delete f[m[0]]; }
+      });
+      // İlk sürümde fatura satırlarındaki kWh, faturalanan kWh olarak ayrıca tutulmuyordu
+      ['t1', 't2', 't3'].forEach(function (z) {
+        if (f[z + 'FatKwh'] === undefined && f[z + 'Tutar'] !== undefined && f[z + 'Kwh'] !== undefined) f[z + 'FatKwh'] = f[z + 'Kwh'];
+      });
+    });
   }
 
   function save() {
@@ -119,6 +133,7 @@
     } else {
       var e = empty();
       Object.keys(e).forEach(function (k) { if (d[k] === undefined) d[k] = e[k]; });
+      migrate(d);
       db = d;
     }
     save();

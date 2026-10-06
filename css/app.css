@@ -167,7 +167,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .sheet-wrap { flex: 1; min-height: 240px; overflow: auto; border: 1px solid var(--line); border-top: 0; background: #fff; outline: none; position: relative; }
 .sheet { border-collapse: separate; border-spacing: 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .sheet th, .sheet td { border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); padding: 4px 8px; white-space: nowrap; height: 26px; }
-.sheet td { min-width: 96px; cursor: cell; background: #fff; }
+.sheet td { min-width: 96px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; cursor: cell; background: #fff; }
 .sheet td.num { text-align: right; }
 .sheet td.calc { background: var(--calc-bg); color: #3c4855; }
 .sheet td.ok { background: var(--ok-bg); color: var(--ok); }
@@ -196,6 +196,9 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .statusbar .grow { flex: 1; }
 .statusbar .ok { color: var(--ok); }
 .statusbar .err { color: var(--err); font-weight: 700; }
+.statusbar .warn { color: var(--warn); font-weight: 600; }
+.warn-mark { color: var(--warn); cursor: help; }
+.sheet th small.fno { display: block; font-weight: 400; color: var(--muted); font-size: 10.5px; }
 
 @media (max-width: 860px) {
   .tesis-page { grid-template-columns: 1fr; }

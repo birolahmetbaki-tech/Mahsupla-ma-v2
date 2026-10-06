@@ -31,7 +31,34 @@
     state.years = Array.from(new Set(all.map(function (r) { return String(r.donem || '').slice(0, 4); }).filter(Boolean))).sort();
     state.records = prefs.yil === 'tum' ? all : all.filter(function (r) { return String(r.donem || '').indexOf(prefs.yil) === 0; });
     state.calc = state.records.map(function (r) { return F.compute(r); });
+    state.notes = recordNotes(state.records);
     state.fields = F.FIELDS.filter(function (f) { return !prefs.hidden[f.group]; });
+  }
+
+  // Kayıtlar arası uyarılar: aynı dönemde birden fazla fatura, çakışan okuma aralıkları, kontrol hataları
+  function recordNotes(recs) {
+    var notes = recs.map(function () { return []; });
+    recs.forEach(function (a, i) {
+      recs.forEach(function (b, j) {
+        if (j <= i) return;
+        if (a.donem && a.donem === b.donem) {
+          notes[i].push('Aynı dönemde başka fatura: ' + (b.faturaNo || '—'));
+          notes[j].push('Aynı dönemde başka fatura: ' + (a.faturaNo || '—'));
+        } else if (a.ilkOkuma && a.sonOkuma && b.ilkOkuma && b.sonOkuma && a.ilkOkuma < b.sonOkuma && b.ilkOkuma < a.sonOkuma) {
+          notes[i].push('Okuma aralığı ' + (b.faturaNo || U.donemLabel(b.donem)) + ' ile çakışıyor');
+          notes[j].push('Okuma aralığı ' + (a.faturaNo || U.donemLabel(a.donem)) + ' ile çakışıyor');
+        }
+      });
+      var errs = F.FIELDS.filter(function (f) { return f.check && F.checkStatus(f, state.calc[i][f.key], a) === 'err'; });
+      if (errs.length) notes[i].push('Kontrol hatası: ' + errs.map(function (f) { return f.label.replace('Kontrol: ', ''); }).join(', '));
+    });
+    return notes;
+  }
+  function headLabel(ri) {
+    var rec = state.records[ri];
+    var label = U.escapeHtml(U.donemLabel(rec.donem) || '(dönem yok)');
+    var n = state.notes[ri];
+    return n.length ? '<span class="warn-mark" title="' + U.escapeHtml(n.join('\n')) + '">⚠</span> ' + label : label;
   }
 
   // Görünüm koordinatları (satır, sütun) <-> (kayıt, alan)
@@ -179,11 +206,13 @@
     var cls = ['cell'];
     if (f.type === 'num') cls.push('num');
     if (f.calc) cls.push('calc');
-    var st = F.checkStatus(f, v);
-    if (st) cls.push(st);
     var rec = state.records[ri];
+    var st = F.checkStatus(f, v, rec);
+    if (st) cls.push(st);
     if (rec.duzeltilen && rec.duzeltilen[f.key]) cls.push('edited');
-    return '<td class="' + cls.join(' ') + '" data-r="' + r + '" data-c="' + c + '">' + U.escapeHtml(display(f, v)) + '</td>';
+    var txt = display(f, v);
+    var title = f.type === 'text' && txt.length > 30 ? ' title="' + U.escapeHtml(txt) + '"' : '';
+    return '<td class="' + cls.join(' ') + '" data-r="' + r + '" data-c="' + c + '"' + title + '>' + U.escapeHtml(txt) + '</td>';
   }
 
   function totalFor(fi) {
@@ -210,7 +239,7 @@
       });
       html += '</tr></thead><tbody>';
       state.records.forEach(function (rec, ri) {
-        html += '<tr><th class="rowh" data-r="' + ri + '">' + U.escapeHtml(U.donemLabel(rec.donem) || '(dönem yok)') + '</th>';
+        html += '<tr><th class="rowh" data-r="' + ri + '">' + headLabel(ri) + '<small class="fno">' + U.escapeHtml(rec.faturaNo || '') + '</small></th>';
         state.fields.forEach(function (f, fi) { html += cellHtml(ri, fi, ri, fi); });
         html += '</tr>';
       });
@@ -219,7 +248,7 @@
       html += '</tr></tfoot>';
     } else {
       html += '<thead><tr class="fld"><th class="corner">Alan</th>';
-      state.records.forEach(function (rec, ri) { html += '<th class="colh" data-c="' + ri + '">' + U.escapeHtml(U.donemLabel(rec.donem) || '(dönem yok)') + '</th>'; });
+      state.records.forEach(function (rec, ri) { html += '<th class="colh" data-c="' + ri + '">' + headLabel(ri) + '<small>' + U.escapeHtml(rec.faturaNo || '') + '</small></th>'; });
       html += '<th class="colh total">Toplam</th></tr></thead><tbody>';
       var lastGroup = null;
       state.fields.forEach(function (f, fi) {
@@ -303,9 +332,11 @@
     }
     var checks = 0, errs = 0;
     state.records.forEach(function (rec, ri) {
-      F.FIELDS.forEach(function (f) { if (f.check) { var st = F.checkStatus(f, state.calc[ri][f.key]); if (st) { checks++; if (st === 'err') errs++; } } });
+      F.FIELDS.forEach(function (f) { if (f.check) { var st = F.checkStatus(f, state.calc[ri][f.key], rec); if (st) { checks++; if (st === 'err') errs++; } } });
     });
+    var uyarili = state.notes.filter(function (x) { return x.length; }).length;
     sb.innerHTML = '<span>' + state.records.length + ' kayıt</span>' +
+      (uyarili ? '<span class="warn">⚠ ' + uyarili + ' kayıtta uyarı (başlıktaki ⚠ üzerine gelin)</span>' : '') +
       '<span class="' + (errs ? 'err' : 'ok') + '">Kontroller: ' + (checks - errs) + '/' + checks + ' tamam' + (errs ? ' · ' + errs + ' hata' : '') + '</span>' +
       '<span class="grow"></span>' +
       (n > 1 ? '<span>Ortalama: ' + U.formatTRNumber(sum / n, 2) + '</span><span>Toplam: ' + U.formatTRNumber(sum, 2) + '</span>' : '') +

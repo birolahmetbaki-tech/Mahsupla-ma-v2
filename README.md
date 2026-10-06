@@ -8,7 +8,7 @@ düzenli olarak **Yedek Al** ile JSON yedeği alın.
 
 ## Modüller
 - **Tesisler** — tüketim tesisleri ve bağlı üretim tesisleri.
-- **Fatura Yükle** — PDF e-faturaları tarayıcıda okur (pdf.js), aritmetik kontrolleri yapar, tesisle eşleştirip kaydeder.
+- **Fatura Yükle** — PDF e-faturaları tarayıcıda okur (pdf.js), birleştirilmiş PDF’leri faturalara böler, aritmetik kontrolleri yapar, tesisle eşleştirip kaydeder. Desteklenen biçimler: CK Enerji Ortaklığı Toptan, CK Boğaziçi Perakende.
 - **Veriler** — tesise ait faturaların Excel benzeri tablosu (düzenleme, kopyala/yapıştır, geri al, CSV).
 
 ## Geliştirme

@@ -62,13 +62,19 @@
   function addFiles(files) {
     Array.prototype.forEach.call(files, function (file) {
       if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { UI.toast(file.name + ': PDF değil, atlandı.', 'err'); return; }
-      var q = { id: U.uid('q'), file: file, status: 'okunuyor' };
+      var q = { id: U.uid('q'), file: file, name: file.name, status: 'okunuyor' };
       queue.push(q);
-      readPdf(file).then(function (res) {
-        q.result = res;
-        q.record = res.record;
-        q.tesisId = resolveTesis(res.record);
-        q.status = 'hazir';
+      readPdf(file).then(function (list) {
+        // Bir PDF birden çok fatura içerebilir: her fatura için ayrı kart
+        var items = list.map(function (inv) {
+          return {
+            id: U.uid('q'), file: file, status: 'hazir', result: inv.res, record: inv.res.record,
+            name: file.name + (list.length > 1 ? ' · s.' + inv.pageFrom + (inv.pageTo > inv.pageFrom ? '–' + inv.pageTo : '') : ''),
+            tesisId: resolveTesis(inv.res.record)
+          };
+        });
+        queue.splice.apply(queue, [queue.indexOf(q), 1].concat(items));
+        if (list.length > 1) UI.toast(file.name + ': ' + list.length + ' fatura bulundu.', 'ok');
       }).catch(function (err) {
         console.error(err);
         q.status = 'hata';
@@ -83,10 +89,10 @@
     return file.arrayBuffer().then(function (buf) {
       return root.pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
     }).then(P.extractItems).then(function (pages) {
-      if (!pages.length || !pages[0].items.length) throw new Error('PDF içinde metin bulunamadı (taranmış görüntü olabilir).');
-      var res = P.parse(pages[0].items, pages[0].width);
-      if (pages.length > 1) res.warnings.push('PDF ' + pages.length + ' sayfa; yalnızca ilk sayfa okundu.');
-      return res;
+      if (!pages.length || !pages.some(function (p) { return p.items.length; })) throw new Error('PDF içinde metin bulunamadı (taranmış görüntü olabilir).');
+      return P.splitInvoices(pages).map(function (inv) {
+        return { pageFrom: inv.pageFrom, pageTo: inv.pageTo, res: P.parse(inv.items, inv.width) };
+      });
     });
   }
 
@@ -99,7 +105,7 @@
 
   function card(q) {
     var c = UI.el('div', { class: 'fcard ' + q.status });
-    var title = '<strong>' + U.escapeHtml(q.file.name) + '</strong>';
+    var title = '<strong>' + U.escapeHtml(q.name) + '</strong>';
     if (q.status === 'okunuyor') { c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge">Okunuyor…</span></div>'; return c; }
     if (q.status === 'hata') { c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge err">Hata</span></div><p class="err-text">' + U.escapeHtml(q.error) + '</p>'; return c; }
     if (q.status === 'kaydedildi') {
@@ -112,7 +118,7 @@
 
     var r = q.record, res = q.result, calc = F.compute(r);
     var checks = F.FIELDS.filter(function (f) { return f.check; }).map(function (f) {
-      var st = F.checkStatus(f, calc[f.key]);
+      var st = F.checkStatus(f, calc[f.key], r);
       return '<span class="chk ' + (st || 'na') + '" title="' + U.escapeHtml(f.label) + ': ' + (calc[f.key] === null ? 'hesaplanamadı' : U.formatTRNumber(calc[f.key], 3)) + '">' +
         (st === 'ok' ? '✓' : st === 'err' ? '✗' : '–') + ' ' + U.escapeHtml(f.label.replace('Kontrol: ', '')) + '</span>';
     }).join('');
@@ -141,6 +147,12 @@
     var dup = q.tesisId ? S.faturaFindDuplicate(q.tesisId, r) : null;
     var info = [];
     if (!q.tesisId) info.push('<li class="warn">Bu fatura hiçbir tesisle eşleşmedi (EIC: ' + U.escapeHtml(r.eic || '—') + '). Tesis seçin veya faturadan yeni tesis oluşturun.</li>');
+    if (q.tesisId && r.donem) {
+      var ayni = S.faturaList(q.tesisId).filter(function (f) { return f.donem === r.donem && f.faturaNo !== r.faturaNo; });
+      if (ayni.length) info.push('<li class="warn">Bu tesiste ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait başka fatura da kayıtlı (' + ayni.map(function (f) { return U.escapeHtml(f.faturaNo || '—'); }).join(', ') + '). Düzeltme/iptal faturası olabilir; kontrol edin.</li>');
+    }
+    var kardes = queue.filter(function (x) { return x !== q && x.record && x.record.donem === r.donem && x.status === 'hazir'; });
+    if (kardes.length) info.push('<li class="warn">Bu yüklemede ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait ' + (kardes.length + 1) + ' fatura var.</li>');
     if (dup) info.push('<li class="warn">Bu tesiste aynı fatura zaten kayıtlı (' + U.escapeHtml(dup.faturaNo || U.donemLabel(dup.donem)) + '). Kaydederseniz mevcut kayıt güncellenir.</li>');
     res.warnings.forEach(function (w) { info.push('<li>' + U.escapeHtml(w) + '</li>'); });
     if (info.length) c.appendChild(UI.el('ul', { class: 'notes' }, info.join('')));
@@ -165,7 +177,7 @@
         var row = UI.el('label', { class: 'pg-row' + (f.calc ? ' calc' : '') + (!f.calc && (v === undefined || v === null || v === '') ? ' missing' : '') });
         row.appendChild(UI.el('span', null, U.escapeHtml(f.label) + (f.unit ? ' <i>' + U.escapeHtml(f.unit) + '</i>' : '')));
         if (f.calc) {
-          var st = F.checkStatus(f, v);
+          var st = F.checkStatus(f, v, r);
           row.appendChild(UI.el('b', { class: st || '' }, v === null || v === undefined ? '—' : U.formatTRNumber(v, f.dec === undefined ? 2 : f.dec)));
         } else {
           var inp = UI.el('input', { type: 'text', value: displayValue(f, v) });
@@ -206,13 +218,13 @@
     return s;
   }
 
-  function saveOne(q) {
+  function saveOne(q, quietToast) {
     if (!q.tesisId || q.status !== 'hazir') return false;
     var rec = Object.assign({}, q.record);
     var dup = S.faturaFindDuplicate(q.tesisId, rec);
     if (dup) rec.id = dup.id;
     rec.tuketimTesisId = q.tesisId;
-    rec.kaynak = { dosya: q.file.name, yukleme: new Date().toISOString(), meta: q.result.meta };
+    rec.kaynak = { dosya: q.name, yukleme: new Date().toISOString(), meta: q.result.meta };
     S.faturaSave(rec);
     // Tesis kartındaki boş alanları faturadan tamamla
     var t = S.tuketimGet(q.tesisId);
@@ -226,13 +238,15 @@
     }
     if (changed) S.tuketimSave(t);
     q.status = 'kaydedildi';
-    UI.toast(q.file.name + ' kaydedildi.', 'ok');
+    if (!quietToast) UI.toast(q.name + ' kaydedildi.', 'ok');
     return true;
   }
 
   function saveAll() {
     var n = 0;
-    queue.forEach(function (q) { if (q.status === 'hazir' && q.tesisId && saveOne(q)) n++; });
+    App.quietRender = true;
+    try { queue.forEach(function (q) { if (q.status === 'hazir' && q.tesisId && saveOne(q, true)) n++; }); }
+    finally { App.quietRender = false; }
     UI.toast(n + ' fatura kaydedildi.', 'ok');
     render(containerRef);
   }
@@ -261,7 +275,13 @@
       tedarikci: r.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic, sozlesmeNo: r.sozlesmeNo, tesisatNo: r.tesisatNo,
       sozlesmeGucu: r.gucMiktar, carpan: r.carpan, oncekiYilTuketim: r.gecmisYilKwh, oncekiYilTuketimDonem: r.donem
     };
-    App.onTuketimSaved = function (t) { q.tesisId = t.id; App.onTuketimSaved = null; render(containerRef); };
+    App.onTuketimSaved = function (t) {
+      q.tesisId = t.id;
+      App.onTuketimSaved = null;
+      // Aynı EIC/sözleşme no'lu diğer faturalar da yeni tesise eşleşsin
+      queue.forEach(function (x) { if (x.status === 'hazir' && !x.tesisId) x.tesisId = resolveTesis(x.record); });
+      render(containerRef);
+    };
     App.pages.tesisler.editTuketim(null, prefill);
   }
 
