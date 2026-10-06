@@ -29,7 +29,7 @@
     { key: 'sozlesmeGucu', label: 'Sözleşme Gücü', type: 'number', unit: 'kW', dec: 3 },
     { key: 'carpan', label: 'Sayaç Çarpanı', type: 'number', dec: 0 },
     { key: 'oncekiYilTuketim', label: 'Önceki Yıl Tüketimi', type: 'number', unit: 'kWh', dec: 3,
-      help: '2× bedelli üretim limitinin referansı.' },
+      help: '2× bedelli üretim limitinin referansı. Faturadaki "Geçmiş Yıl Tüketim" ile doldurulabilir.' },
     { key: 'notlar', label: 'Notlar', type: 'textarea', full: true }
   ];
 
@@ -140,7 +140,7 @@
     head.appendChild(actions);
     wrap.appendChild(head);
 
-    var limitRef = t.oncekiYilTuketim;
+    var limitRef = t.oncekiYilTuketim || (son && son.gecmisYilKwh);
     var cards = UI.el('div', { class: 'cards' },
       '<div class="card"><h4>Abonelik</h4>' +
         kv('Abone Grubu', t.aboneGrubu) + kv('Gerilim', t.gerilim) + kv('Tarife', [t.tarifeTerim, t.tarifeZaman].filter(Boolean).join(' / ')) +

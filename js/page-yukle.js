@@ -170,8 +170,7 @@
     det.appendChild(UI.el('summary', null, 'Okunan değerleri göster / düzelt'));
     var grid = UI.el('div', { class: 'preview-grid' });
     F.GROUPS.forEach(function (g) {
-      var fs = F.FIELDS.filter(function (f) { return f.group === g.id && !f.hidden; });
-      if (!fs.length) return;
+      var fs = F.FIELDS.filter(function (f) { return f.group === g.id; });
       var sec = UI.el('div', { class: 'pg-group' }, '<h5>' + U.escapeHtml(g.label) + '</h5>');
       fs.forEach(function (f) {
         var v = f.calc ? calc[f.key] : r[f.key];
@@ -234,6 +233,9 @@
      ['carpan', rec.carpan], ['sozlesmeGucu', rec.gucMiktar]].forEach(function (p) {
       if ((t[p[0]] === undefined || t[p[0]] === null || t[p[0]] === '') && p[1] !== undefined && p[1] !== null) { t[p[0]] = p[1]; changed = true; }
     });
+    if (rec.gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
+      t.oncekiYilTuketim = rec.gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
+    }
     if (changed) S.tuketimSave(t);
     q.status = 'kaydedildi';
     if (!quietToast) UI.toast(q.name + ' kaydedildi.', 'ok');
@@ -271,7 +273,7 @@
       tarifeZaman: (r.t2Kwh || r.t3Kwh) ? 'Üç Zamanlı' : '',
       serbestTuketici: /toptan|ortakl/i.test(r.tedarikci || '') ? 'Evet' : '',
       tedarikci: r.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic, sozlesmeNo: r.sozlesmeNo, tesisatNo: r.tesisatNo,
-      sozlesmeGucu: r.gucMiktar, carpan: r.carpan
+      sozlesmeGucu: r.gucMiktar, carpan: r.carpan, oncekiYilTuketim: r.gecmisYilKwh, oncekiYilTuketimDonem: r.donem
     };
     App.onTuketimSaved = function (t) {
       q.tesisId = t.id;

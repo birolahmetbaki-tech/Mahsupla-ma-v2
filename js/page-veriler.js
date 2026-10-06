@@ -10,7 +10,7 @@
   var state = { tt: null, records: [], fields: [], sel: null, anchor: null, editing: null, undo: [] };
   var containerRef = null;
 
-  var NO_SUM = { carpan: 1, kdvOrani: 1 };
+  var NO_SUM = { gecmisYilKwh: 1, cariYilKwh: 1, ortGunlukKwh: 1, c_limit2x: 1, carpan: 1, kdvOrani: 1 };
 
   function loadPrefs() {
     var d = { orient: 'cols', hidden: {}, yil: 'tum' };
@@ -32,7 +32,7 @@
     state.records = prefs.yil === 'tum' ? all : all.filter(function (r) { return String(r.donem || '').indexOf(prefs.yil) === 0; });
     state.calc = state.records.map(function (r) { return F.compute(r); });
     state.notes = recordNotes(state.records);
-    state.fields = F.FIELDS.filter(function (f) { return !f.hidden && !prefs.hidden[f.group]; });
+    state.fields = F.FIELDS.filter(function (f) { return !prefs.hidden[f.group]; });
   }
 
   // Kayıtlar arası uyarılar: aynı dönemde birden fazla fatura, çakışan okuma aralıkları, kontrol hataları
