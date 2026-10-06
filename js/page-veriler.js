@@ -173,26 +173,36 @@
     return s;
   }
 
+  // Veriler sayfası iki alt sayfadan oluşur (alttaki sekmeler): Faturalar ve OSOS (saatlik sayaç verileri)
   function render(container, params) {
     containerRef = container;
+    if (params && params.sayfa) { prefs.sayfa = params.sayfa === 'osos' ? 'osos' : 'faturalar'; savePrefs(); }
+    secimiCoz(params);
+    if (prefs.sayfa === 'osos') renderOsos(container); else renderFaturalar(container, params);
+    var page = container.querySelector('.veriler-page');
+    if (page) page.appendChild(sekmeler());
+  }
+
+  function secimiCoz(params) {
     var list = S.tuketimList();
     if (params && params.tt) { if (params.tt !== state.tt) state.ab = 'tum'; state.tt = params.tt; }
     if (params && params.ab) state.ab = params.ab;
     if (!state.tt || !S.tuketimGet(state.tt)) { state.tt = list.length ? list[0].id : null; state.ab = 'tum'; }
     if (state.ab !== 'tum' && !S.abonelikGet(state.ab)) state.ab = 'tum';
-    loadData();
+  }
 
-    container.innerHTML = '';
-    var page = UI.el('div', { class: 'veriler-page' });
+  function sekmeler() {
+    var tabs = UI.el('div', { class: 'sheet-tabs', role: 'tablist' });
+    [['faturalar', 'Faturalar'], ['osos', 'OSOS (Saatlik)']].forEach(function (t) {
+      tabs.appendChild(UI.el('button', { class: 'sheet-tab' + (prefs.sayfa === t[0] || (!prefs.sayfa && t[0] === 'faturalar') ? ' active' : ''), role: 'tab',
+        onclick: function () { prefs.sayfa = t[0]; savePrefs(); state.sel = state.anchor = null; render(containerRef); } }, t[1]));
+    });
+    return tabs;
+  }
 
-    if (!list.length) {
-      page.appendChild(UI.el('div', { class: 'empty' }, '<p>Önce bir tüketim tesisi oluşturun.</p><a class="btn primary" href="#/tesisler">Tesisler</a>'));
-      container.appendChild(page);
-      return;
-    }
-
-    // Araç çubuğu
-    var bar = UI.el('div', { class: 'toolbar' });
+  // Tesis ve abonelik seçimi (iki alt sayfada ortak)
+  function secimAraclari(bar) {
+    var list = S.tuketimList();
     var sel = UI.el('select');
     list.forEach(function (t) {
       var o = UI.el('option', { value: t.id }, U.escapeHtml(t.ad));
@@ -212,6 +222,40 @@
     });
     abSel.onchange = function () { state.sel = state.anchor = null; state.undo = []; location.hash = '#/veriler?tt=' + state.tt + '&ab=' + abSel.value; };
     bar.appendChild(abSel);
+  }
+
+  function renderOsos(container) {
+    container.innerHTML = '';
+    var page = UI.el('div', { class: 'veriler-page osos-page' });
+    if (!S.tuketimList().length) {
+      page.appendChild(UI.el('div', { class: 'empty' }, '<p>Önce bir tüketim tesisi oluşturun.</p><a class="btn primary" href="#/tesisler">Tesisler</a>'));
+      container.appendChild(page);
+      return;
+    }
+    var bar = UI.el('div', { class: 'toolbar' });
+    secimAraclari(bar);
+    page.appendChild(bar);
+    App.pages.osos.render(page, { tt: state.tt, ab: state.ab });
+    container.appendChild(page);
+  }
+
+  function renderFaturalar(container, params) {
+    var list = S.tuketimList();
+    loadData();
+
+    container.innerHTML = '';
+    var page = UI.el('div', { class: 'veriler-page' });
+
+    if (!list.length) {
+      page.appendChild(UI.el('div', { class: 'empty' }, '<p>Önce bir tüketim tesisi oluşturun.</p><a class="btn primary" href="#/tesisler">Tesisler</a>'));
+      container.appendChild(page);
+      return;
+    }
+
+    // Araç çubuğu
+    var bar = UI.el('div', { class: 'toolbar' });
+    secimAraclari(bar);
+    var abs = S.abonelikList(state.tt);
 
     var yil = UI.el('select', { title: 'Yıl filtresi' });
     yil.appendChild(UI.el('option', { value: 'tum' }, 'Tüm yıllar'));
@@ -833,5 +877,5 @@
   }
 
   App.pages = App.pages || {};
-  App.pages.veriler = { render: render };
+  App.pages.veriler = { render: render, rerenderPage: function () { render(containerRef); } };
 })(this);

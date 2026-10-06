@@ -232,10 +232,16 @@
   }
 
   // --- Yedekleme
-  function exportJSON() { return JSON.stringify(db, null, 2); }
+  // Yedek, ayrı anahtarda tutulan OSOS saatlik verilerini de içerir
+  function exportJSON() {
+    var out = Object.assign({}, db);
+    if (root.App.osos) out.osos = root.App.osos.exportData();
+    return JSON.stringify(out);
+  }
   function importJSON(text, mode) {
     var d = JSON.parse(text);
     if (!d || !Array.isArray(d.tuketimTesisleri)) throw new Error('Geçerli bir Mahsupla yedeği değil.');
+    if (d.osos) { if (root.App.osos) root.App.osos.importData(d.osos, mode); delete d.osos; }
     fillDefaults(d);
     if (mode === 'merge') {
       migrate(d);
