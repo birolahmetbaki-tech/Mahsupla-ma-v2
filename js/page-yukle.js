@@ -1,47 +1,46 @@
-/* Fatura Yükle modülü: PDF e-faturaları okur, önizletir, kontrol eder ve ilgili aboneliğe kaydeder.
-   Eşleştirme faturadaki EIC / sözleşme no / tesisat no ile aboneliğe yapılır. */
+/* Fatura Yükle: PDF faturaları okur, kayıtlı şablonla tanır ve yalnız şablonda tanımlı değerleri içeri aktarır.
+   Şablonu olmayan veya tanımlanmamış satırı bulunan faturalar fatura penceresinde açılıp tanımlanır (bkz. fatura-pencere.js).
+   Abonelik eşleştirmesi faturadaki EIC / sözleşme no / tesisat no ile yapılır. */
 (function (root) {
   'use strict';
-  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser, K = App.kalemler;
+  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser, SB = App.sablon;
 
-  var queue = []; // {id, file, name, status, result, record, abId, error}
+  // Kuyruk öğesi: { id, file, name, pdf, inv, parsed, sablon, sonuc, record, abId, status }
+  // status: okunuyor | hazir | sablonsuz | kaydedildi | atlandi | hata
+  var queue = [];
   var hedef = 'auto';
   var containerRef = null;
+  var ZORUNLU = ['donem', 'faturaNo', 'aktifKwh', 'faturaTutari'];
 
   function render(container, params) {
     containerRef = container;
     if (params && params.ab) hedef = params.ab;
     container.innerHTML = '';
     var page = UI.el('div', { class: 'yukle-page' });
-
-    var head = UI.el('div', { class: 'panel-head' }, '<div><h2>Fatura Yükle</h2><span class="muted">PDF e-fatura dosyalarını sürükleyin; değerler okunur, kontrol edilir ve onayınızla kaydedilir.</span></div>');
-    page.appendChild(head);
+    page.appendChild(UI.el('div', { class: 'panel-head' }, '<div><h2>Fatura Yükle</h2><span class="muted">Faturalar kayıtlı şablonla okunur; yalnız tanımlı değerler içeri aktarılır. ' +
+      'Şablonu olmayan faturayı açıp “Otomatik tanımla” ile tanımlayın, gerekirse değerlere tıklayarak düzeltin.</span></div>'));
 
     var bar = UI.el('div', { class: 'toolbar' });
     var sel = abonelikSelect(hedef, 'Otomatik eşleştir (EIC / Sözleşme No)', 'auto');
-    sel.id = 'hedefTesis';
     sel.onchange = function () {
       hedef = sel.value;
-      queue.forEach(function (q) { if (q.status === 'hazir') q.abId = resolveAbonelik(q.record); });
+      queue.forEach(function (q) { if (q.status === 'hazir' || q.status === 'sablonsuz') q.abId = resolveAbonelik(q); });
       renderQueue();
     };
     bar.appendChild(UI.el('label', { class: 'inline' }, 'Hedef abonelik:'));
     bar.appendChild(sel);
     if (queue.length) {
-      bar.appendChild(UI.el('button', { class: 'btn primary sm', onclick: saveAll }, 'Hazır olanların tümünü kaydet'));
-      bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () {
-        var extra = [];
-        queue.forEach(function (q) { if (q.record) (q.record.kalemler || []).forEach(function (k) { extra.push({ bicim: q.record.bicim, ad: k.ad, tutar: k.tutar }); }); });
-        App.kalemUI.openEslestirme(extra);
-      } }, 'Kalem Eşleştirme'));
+      bar.appendChild(UI.el('button', { class: 'btn primary sm', onclick: saveAll, title: 'Şablonu olan, zorunlu bilgileri tam ve kontrolleri tutan faturaları kaydeder' }, 'Sorunsuz olanların tümünü kaydet'));
       bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { queue = []; render(container); } }, 'Listeyi temizle'));
     }
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: sablonlarPenceresi }, 'Şablonlar (' + S.sablonList().length + ')'));
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { App.kalemUI.openEslestirme(); } }, 'Kalem Eşleştirme'));
     page.appendChild(bar);
 
     var drop = UI.el('label', { class: 'dropzone' },
       '<input type="file" accept="application/pdf,.pdf" multiple hidden>' +
       '<div class="dz-icon">⬆</div><div><strong>PDF faturaları buraya bırakın</strong> veya tıklayıp seçin</div>' +
-      '<div class="muted">Birden fazla dosya seçebilirsiniz. Dosyalar bilgisayarınızdan dışarı gönderilmez; okuma tarayıcıda yapılır.</div>');
+      '<div class="muted">Birden fazla dosya ve çok faturalı PDF olabilir. Dosyalar bilgisayarınızdan dışarı gönderilmez.</div>');
     var input = drop.querySelector('input');
     input.onchange = function () { addFiles(input.files); input.value = ''; };
     ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
@@ -54,9 +53,10 @@
     renderQueue();
   }
 
-  function resolveAbonelik(rec) {
+  function resolveAbonelik(q) {
     if (hedef !== 'auto' && S.abonelikGet(hedef)) return hedef;
-    var m = S.abonelikMatch(rec || {});
+    var r = q.record || (q.parsed && q.parsed.record) || {};
+    var m = S.abonelikMatch(r) || (q.parsed ? S.abonelikMatch(q.parsed.record) : null);
     return m ? m.id : null;
   }
 
@@ -84,22 +84,33 @@
     return (t ? t.ad + ' › ' : '') + a.ad;
   }
 
+  // Kayıtlı şablonu bulup uygular
+  function sablonUygula(q) {
+    q.sablon = SB.bul(q.inv.items, S.sablonList());
+    if (!q.sablon) { q.status = 'sablonsuz'; q.sonuc = null; q.record = null; }
+    else {
+      q.sonuc = SB.uygula(q.inv.items, q.inv.width, q.sablon, S.eslestirme());
+      q.record = q.sonuc.record;
+      q.status = 'hazir';
+    }
+    if (!q.abId) q.abId = resolveAbonelik(q);
+  }
+
   function addFiles(files) {
     Array.prototype.forEach.call(files, function (file) {
       if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { UI.toast(file.name + ': PDF değil, atlandı.', 'err'); return; }
       var q = { id: U.uid('q'), file: file, name: file.name, status: 'okunuyor' };
       queue.push(q);
-      readPdf(file).then(function (list) {
+      readPdf(file).then(function (res) {
         // Bir PDF birden çok fatura içerebilir: her fatura için ayrı kart
-        var items = list.map(function (inv) {
-          return {
-            id: U.uid('q'), file: file, status: 'hazir', result: inv.res, record: inv.res.record,
-            name: file.name + (list.length > 1 ? ' · s.' + inv.pageFrom + (inv.pageTo > inv.pageFrom ? '–' + inv.pageTo : '') : ''),
-            abId: resolveAbonelik(inv.res.record)
-          };
+        var items = res.invoices.map(function (inv) {
+          var x = { id: U.uid('q'), file: file, pdf: res.pdf, inv: inv, parsed: inv.parsed,
+            name: file.name + (res.invoices.length > 1 ? ' · s.' + inv.pageFrom + (inv.pageTo > inv.pageFrom ? '–' + inv.pageTo : '') : '') };
+          sablonUygula(x);
+          return x;
         });
         queue.splice.apply(queue, [queue.indexOf(q), 1].concat(items));
-        if (list.length > 1) UI.toast(file.name + ': ' + list.length + ' fatura bulundu.', 'ok');
+        if (res.invoices.length > 1) UI.toast(file.name + ': ' + res.invoices.length + ' fatura bulundu.', 'ok');
       }).catch(function (err) {
         console.error(err);
         q.status = 'hata';
@@ -111,14 +122,30 @@
 
   function readPdf(file) {
     if (!root.pdfjsLib) return Promise.reject(new Error('PDF okuyucu (pdf.js) yüklenemedi.'));
+    var pdf;
     return file.arrayBuffer().then(function (buf) {
       return root.pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
-    }).then(P.extractItems).then(function (pages) {
+    }).then(function (doc) { pdf = doc; return P.extractItems(doc); }).then(function (pages) {
       if (!pages.length || !pages.some(function (p) { return p.items.length; })) throw new Error('PDF içinde metin bulunamadı (taranmış görüntü olabilir).');
-      return P.splitInvoices(pages).map(function (inv) {
-        return { pageFrom: inv.pageFrom, pageTo: inv.pageTo, res: P.parse(inv.items, inv.width) };
+      var invoices = P.splitInvoices(pages).map(function (inv) {
+        // Yerleşik okuyucu yalnız "Otomatik tanımla" önerisi için kullanılır
+        try { inv.parsed = P.parse(inv.items, inv.width); } catch (e) { inv.parsed = null; }
+        return inv;
       });
+      return { pdf: pdf, invoices: invoices };
     });
+  }
+
+  function sorunlar(q) {
+    var out = [];
+    if (!q.record) return out;
+    var eksik = ZORUNLU.filter(function (k) { var v = q.record[k]; return v === undefined || v === null || v === ''; });
+    if (eksik.length) out.push({ tur: 'err', metin: 'Eksik: ' + eksik.map(function (k) { return F.byKey[k].label; }).join(', ') });
+    if (q.sonuc && q.sonuc.tanimsiz.length) out.push({ tur: 'warn', metin: q.sonuc.tanimsiz.length + ' tanımlanmamış satır: ' + q.sonuc.tanimsiz.map(function (l) { return l.etiket || l.degerMetni; }).join(', ') });
+    var calc = F.compute(q.record);
+    var hata = F.FIELDS.filter(function (f) { return f.check && F.checkStatus(f, calc[f.key], q.record) === 'err'; });
+    if (hata.length) out.push({ tur: 'err', metin: 'Kontrol tutmuyor: ' + hata.map(function (f) { return f.label.replace('Kontrol: ', ''); }).join(', ') });
+    return out;
   }
 
   function renderQueue() {
@@ -137,112 +164,61 @@
       var ab = S.abonelikGet(q.abId) || {};
       c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge ok">Kaydedildi</span></div><p>' +
         U.escapeHtml(abonelikAdi(q.abId)) + ' · ' + U.donemLabel(q.record.donem) +
-        ' · <a href="#/veriler?tt=' + ab.tuketimTesisId + '&ab=' + q.abId + '">Veriler sayfasında aç →</a></p>';
+        ' · <a href="#/veriler?tt=' + ab.tuketimTesisId + '&ab=' + q.abId + '&sayfa=faturalar">Veriler sayfasında aç →</a></p>';
       return c;
     }
     if (q.status === 'atlandi') { c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge">Atlandı</span></div>'; return c; }
 
-    var r = q.record, res = q.result, calc = F.compute(r);
-    var checks = F.FIELDS.filter(function (f) { return f.check; }).map(function (f) {
-      var st = F.checkStatus(f, calc[f.key], r);
-      return '<span class="chk ' + (st || 'na') + '" title="' + U.escapeHtml(f.label) + ': ' + (calc[f.key] === null ? 'hesaplanamadı' : U.formatTRNumber(calc[f.key], 3)) + '">' +
-        (st === 'ok' ? '✓' : st === 'err' ? '✗' : '–') + ' ' + U.escapeHtml(f.label.replace('Kontrol: ', '')) + '</span>';
-    }).join('');
-
+    var r = q.record;
     var head = UI.el('div', { class: 'fcard-head' }, title +
-      '<span class="badge">' + U.escapeHtml(U.donemLabel(r.donem)) + '</span>' +
-      '<span class="badge">' + res.found + ' alan okundu</span>' +
-      '<span class="muted">' + U.escapeHtml(r.tedarikci || '') + ' · ' + U.escapeHtml(r.faturaNo || '') + '</span>');
+      (q.sablon ? '<span class="badge">Şablon: ' + U.escapeHtml(q.sablon.ad) + '</span>' : '<span class="badge warn">Şablon yok</span>') +
+      (r ? '<span class="badge">' + U.escapeHtml(U.donemLabel(r.donem)) + '</span><span class="muted">' + U.escapeHtml(r.faturaNo || '') + '</span>' : ''));
     c.appendChild(head);
 
-    // Abonelik eşleştirme
+    if (!r) {
+      c.appendChild(UI.el('p', { class: 'muted' }, 'Bu fatura biçimi için kayıtlı şablon yok. Faturayı açıp “Otomatik tanımla” ile tanımlayın; kaydettiğiniz şablon aynı biçimdeki diğer faturalara da uygulanır.'));
+    } else {
+      c.appendChild(UI.el('div', { class: 'fcard-ozet' },
+        [['Çekilen', r.aktifKwh, 'kWh', 0], ['Enerji', r.enerjiBedeli, 'TL'], ['Dağıtım', r.dagitimBedeli, 'TL'], ['GES mahsubu', r.mahsupTL, 'TL'], ['Fatura tutarı', r.faturaTutari, 'TL']]
+          .map(function (x) { return '<span><i>' + x[0] + '</i> ' + (typeof x[1] === 'number' ? U.formatTRNumber(x[1], x[3] === undefined ? 2 : x[3]) + ' ' + x[2] : '—') + '</span>'; }).join('')));
+      var sr = sorunlar(q);
+      c.appendChild(UI.el('ul', { class: 'notes' }, sr.length ? sr.map(function (s) { return '<li class="' + s.tur + '">' + U.escapeHtml(s.metin) + '</li>'; }).join('') : '<li class="ok">✓ Zorunlu bilgiler tam, kontroller tutuyor.</li>'));
+    }
+
     var match = UI.el('div', { class: 'match' });
     var sel = abonelikSelect(q.abId, '— Abonelik seçin —', '');
     sel.onchange = function () { q.abId = sel.value || null; renderQueue(); };
-    match.appendChild(UI.el('span', null, 'Kaydedilecek abonelik:'));
+    match.appendChild(UI.el('span', null, 'Abonelik:'));
     match.appendChild(sel);
     match.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { createAbonelikFrom(q); } }, 'Faturadan yeni abonelik oluştur'));
     c.appendChild(match);
 
-    var dup = q.abId ? S.faturaFindDuplicate(q.abId, r) : null;
-    var info = [];
-    if (!q.abId) info.push('<li class="warn">Bu fatura hiçbir abonelikle eşleşmedi (EIC: ' + U.escapeHtml(r.eic || '—') + '). Abonelik seçin veya faturadan yeni abonelik oluşturun.</li>');
-    if (q.abId && r.donem) {
-      var ayni = S.faturaList(null, q.abId).filter(function (f) { return f.donem === r.donem && f.faturaNo !== r.faturaNo; });
-      if (ayni.length) info.push('<li class="warn">Bu abonelikte ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait başka fatura da kayıtlı (' + ayni.map(function (f) { return U.escapeHtml(f.faturaNo || '—'); }).join(', ') + '). Düzeltme/iptal faturası olabilir; kontrol edin.</li>');
-    }
-    var kardes = queue.filter(function (x) { return x !== q && x.record && x.record.donem === r.donem && x.status === 'hazir' && x.abId === q.abId; });
-    if (kardes.length) info.push('<li class="warn">Bu yüklemede ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait ' + (kardes.length + 1) + ' fatura var.</li>');
-    if (dup) info.push('<li class="warn">Bu abonelikte aynı fatura zaten kayıtlı (' + U.escapeHtml(dup.faturaNo || U.donemLabel(dup.donem)) + '). Kaydederseniz mevcut kayıt güncellenir.</li>');
-    res.warnings.forEach(function (w) { info.push('<li>' + U.escapeHtml(w) + '</li>'); });
-    if (info.length) c.appendChild(UI.el('ul', { class: 'notes' }, info.join('')));
-
-    c.appendChild(UI.el('div', { class: 'checks' }, checks));
-
-    // Meta bilgiler
-    var m = res.meta;
-    c.appendChild(UI.el('div', { class: 'meta' },
-      [['Abone', m.musteriAdi], ['VKN', m.vkn], ['Vergi Dairesi', m.vergiDairesi], ['Adres', m.adres], ['Tedarikçi VKN', m.tedarikciVkn], ['Sayaç', m.sayac], ['ETTN', m.ettn]]
-        .filter(function (x) { return x[1]; }).map(function (x) { return '<span><i>' + x[0] + ':</i> ' + U.escapeHtml(x[1]) + '</span>'; }).join('')));
-
-    // Kalemler: kategorisi tanınmayan varsa açık gelir
-    var tanimsizVar = (r.kalemler || []).some(function (k) { return K.resolve(k.ad, r.bicim, S.eslestirme()).kategori === 'tanimsiz'; });
-    var kdet = UI.el('details', { class: 'preview' });
-    if (tanimsizVar) kdet.open = true;
-    kdet.appendChild(UI.el('summary', null, 'Fatura kalemleri (' + (r.kalemler || []).length + ')' + (tanimsizVar ? ' — tanınmayan kalem var, kategorisini seçin' : '')));
-    kdet.appendChild(App.kalemUI.kalemTable(r, reapplyAll));
-    c.appendChild(kdet);
-
-    // Standart özet önizleme / düzeltme
-    var det = UI.el('details', { class: 'preview' });
-    det.appendChild(UI.el('summary', null, 'Standart özeti göster / düzelt'));
-    var grid = UI.el('div', { class: 'preview-grid' });
-    F.GROUPS.forEach(function (g) {
-      var fs = F.FIELDS.filter(function (f) { return f.group === g.id && !f.hidden; });
-      if (!fs.length) return;
-      var sec = UI.el('div', { class: 'pg-group' }, '<h5>' + U.escapeHtml(g.label) + '</h5>');
-      fs.forEach(function (f) {
-        var v = f.calc ? calc[f.key] : r[f.key];
-        var row = UI.el('label', { class: 'pg-row' + (f.calc ? ' calc' : '') + (!f.calc && (v === undefined || v === null || v === '') ? ' missing' : '') });
-        row.appendChild(UI.el('span', null, U.escapeHtml(f.label) + (f.unit ? ' <i>' + U.escapeHtml(f.unit) + '</i>' : '')));
-        if (f.calc) {
-          var st = F.checkStatus(f, v, r);
-          row.appendChild(UI.el('b', { class: st || '' }, v === null || v === undefined ? '—' : U.formatTRNumber(v, f.dec === undefined ? 2 : f.dec)));
-        } else {
-          var inp = UI.el('input', { type: 'text', value: displayValue(f, v) });
-          inp.onchange = function () {
-            r[f.key] = parseValue(f, inp.value);
-            r.duzeltilen = r.duzeltilen || {}; r.duzeltilen[f.key] = true; // kalem toplamı bu alanın üzerine yazmasın
-            renderQueue();
-          };
-          row.appendChild(inp);
-        }
-        sec.appendChild(row);
-      });
-      grid.appendChild(sec);
-    });
-    det.appendChild(grid);
-    var raw = UI.el('details', { class: 'raw' });
-    raw.appendChild(UI.el('summary', null, 'PDF’ten çıkarılan ham metin'));
-    raw.appendChild(UI.el('pre', null, U.escapeHtml(res.lines.join('\n'))));
-    det.appendChild(raw);
-    c.appendChild(det);
+    var dup = q.abId && r ? S.faturaFindDuplicate(q.abId, r) : null;
+    if (dup) c.appendChild(UI.el('p', { class: 'warn-text' }, 'Bu abonelikte aynı fatura zaten kayıtlı; kaydederseniz güncellenir.'));
 
     var foot = UI.el('div', { class: 'fcard-foot' });
     foot.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { q.status = 'atlandi'; renderQueue(); } }, 'Atla'));
-    var saveBtn = UI.el('button', { class: 'btn primary sm', onclick: function () { saveOne(q); renderQueue(); } }, dup ? 'Güncelle' : 'Kaydet');
-    if (!q.abId) saveBtn.disabled = true;
-    foot.appendChild(saveBtn);
+    foot.appendChild(UI.el('button', { class: 'btn sm' + (r ? '' : ' primary'), onclick: function () { pencereAc(q); } }, r ? 'Faturayı aç / tanımları düzenle' : 'Faturayı aç ve tanımla'));
+    var kaydet = UI.el('button', { class: 'btn primary sm', onclick: function () {
+      var sr = sorunlar(q);
+      if (sr.some(function (s) { return s.tur === 'err'; }) || (q.sonuc && q.sonuc.tanimsiz.length)) { pencereAc(q); return; }
+      saveOne(q); renderQueue();
+    } }, dup ? 'Güncelle' : 'Kaydet');
+    if (!r || !q.abId) kaydet.disabled = true;
+    foot.appendChild(kaydet);
     c.appendChild(foot);
     return c;
   }
 
-  // Eşleştirme değişince bekleyen faturaların özetini de yeniden hesapla
-  function reapplyAll() {
-    queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); });
-    renderQueue();
+  function pencereAc(q) {
+    App.faturaPencere.ac(q, {
+      abonelikSelect: function (secili) { return abonelikSelect(secili, '— Abonelik seçin —', ''); },
+      // Şablon kaydedilince aynı şablonla tanınan bekleyen faturalar yeniden okunur
+      onSablon: function () { queue.forEach(function (x) { if (x !== q && (x.status === 'hazir' || x.status === 'sablonsuz')) sablonUygula(x); }); },
+      onKaydet: function (x) { x.status = 'hazir'; var ok = saveOne(x); render(containerRef); return ok; },
+      onKapat: function () { queue.forEach(function (x) { if (x.status === 'hazir' || x.status === 'sablonsuz') sablonUygula(x); }); render(containerRef); }
+    });
   }
-  S.onChange(function () { if (queue.length) queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); }); });
 
   function detay(r) { return r.detay || {}; }
   // Sözleşme gücü faturada "Güç Bedeli" kaleminin miktarı (kW) olarak yazar
@@ -251,39 +227,22 @@
     return k && k.miktar ? k.miktar : (detay(r).anlasmaGucu || null);
   }
 
-  function displayValue(f, v) {
-    if (v === null || v === undefined) return '';
-    if (f.type === 'num') return U.formatTRNumber(v, f.dec === undefined ? 2 : f.dec);
-    if (f.type === 'date') return U.formatTRDate(v);
-    return String(v);
-  }
-  function parseValue(f, s) {
-    s = String(s).trim();
-    if (s === '') return null;
-    if (f.type === 'num') return U.parseTRNumber(s);
-    if (f.type === 'date') return U.parseTRDate(s) || s;
-    return s;
-  }
-
   function saveOne(q, quietToast) {
     var t = q.abId ? S.abonelikGet(q.abId) : null;
-    if (!t || q.status !== 'hazir') return false;
+    if (!t || !q.record) return false;
     var rec = Object.assign({}, q.record);
     var dup = S.faturaFindDuplicate(q.abId, rec);
     if (dup) rec.id = dup.id;
     rec.abonelikId = t.id;
     rec.tuketimTesisId = t.tuketimTesisId;
-    rec.kaynak = { dosya: q.name, yukleme: new Date().toISOString(), meta: q.result.meta };
+    rec.kaynak = { dosya: q.name, yukleme: new Date().toISOString(), sablon: q.sablon ? q.sablon.ad : null };
     S.faturaSave(rec);
     // Abonelik kartındaki boş alanları faturadan tamamla
     var changed = false;
     [['eic', rec.eic], ['sozlesmeNo', rec.sozlesmeNo], ['tedarikci', rec.tedarikci], ['tuketiciGrubuFatura', rec.tuketiciGrubu],
-     ['carpan', detay(rec).carpan], ['sozlesmeGucu', sozlesmeGucu(rec)]].forEach(function (p) {
+     ['sozlesmeGucu', sozlesmeGucu(rec)]].forEach(function (p) {
       if ((t[p[0]] === undefined || t[p[0]] === null || t[p[0]] === '') && p[1] !== undefined && p[1] !== null) { t[p[0]] = p[1]; changed = true; }
     });
-    if (detay(rec).gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
-      t.oncekiYilTuketim = detay(rec).gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
-    }
     if (changed) S.abonelikSave(t);
     q.status = 'kaydedildi';
     if (!quietToast) UI.toast(q.name + ' kaydedildi.', 'ok');
@@ -291,11 +250,18 @@
   }
 
   function saveAll() {
-    var n = 0;
+    var n = 0, atlanan = 0;
     App.quietRender = true;
-    try { queue.forEach(function (q) { if (q.status === 'hazir' && q.abId && saveOne(q, true)) n++; }); }
-    finally { App.quietRender = false; }
-    UI.toast(n + ' fatura kaydedildi.', 'ok');
+    try {
+      queue.forEach(function (q) {
+        if (q.status !== 'hazir') return;
+        var sorunlu = !q.abId || sorunlar(q).some(function (s) { return s.tur === 'err'; }) || (q.sonuc && q.sonuc.tanimsiz.length);
+        if (sorunlu) { atlanan++; return; }
+        if (saveOne(q, true)) n++;
+      });
+    } finally { App.quietRender = false; }
+    var sablonsuz = queue.filter(function (q) { return q.status === 'sablonsuz'; }).length;
+    UI.toast(n + ' fatura kaydedildi.' + (atlanan ? ' ' + atlanan + ' fatura sorunlu olduğu için bekletildi.' : '') + (sablonsuz ? ' ' + sablonsuz + ' faturanın şablonu yok.' : ''), n ? 'ok' : '');
     render(containerRef);
   }
 
@@ -310,8 +276,10 @@
   }
 
   function createAbonelikFrom(q) {
-    var r = q.record, m = q.result.meta;
-    var grup = r.tuketiciGrubu || '';
+    var r = q.record || (q.parsed && q.parsed.record) || {};
+    var p = q.parsed ? q.parsed.record : r;
+    var m = q.parsed ? q.parsed.meta : {};
+    var grup = r.tuketiciGrubu || p.tuketiciGrubu || '';
     var prefill = {
       ad: (m.musteriAdi || 'Yeni Abonelik').split(/\s+/).slice(0, 3).join(' '),
       yeniTesisAdi: (m.musteriAdi || 'Yeni Tesis').split(/\s+/).slice(0, 3).join(' '),
@@ -319,17 +287,42 @@
       aboneGrubu: guessAbone(grup),
       gerilim: /\bOG\b/.test(grup) ? 'OG' : /\bAG\b/.test(grup) ? 'AG' : /\bYG\b/.test(grup) ? 'YG' : '',
       tarifeTerim: /\bTT\b|Tek Terim/i.test(grup) ? 'Tek Terimli' : /\bÇT\b|\bCT\b|Çift Terim/i.test(grup) ? 'Çift Terimli' : '',
-      tarifeZaman: /Tek Zaman/i.test(grup) ? 'Tek Zamanlı' : /Üç Zaman/i.test(grup) || r.t2Kwh || r.t3Kwh ? 'Üç Zamanlı' : '',
-      serbestTuketici: /toptan|ortakl/i.test(r.tedarikci || '') ? 'Evet' : '',
-      tedarikci: r.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic, sozlesmeNo: r.sozlesmeNo, tesisatNo: r.tesisatNo,
-      sozlesmeGucu: sozlesmeGucu(r), carpan: detay(r).carpan, oncekiYilTuketim: detay(r).gecmisYilKwh || null, oncekiYilTuketimDonem: r.donem
+      tarifeZaman: /Tek Zaman/i.test(grup) ? 'Tek Zamanlı' : /Üç Zaman/i.test(grup) || p.t2Kwh || p.t3Kwh ? 'Üç Zamanlı' : '',
+      serbestTuketici: /toptan|ortakl/i.test(p.tedarikci || '') ? 'Evet' : '',
+      tedarikci: p.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic || p.eic, sozlesmeNo: r.sozlesmeNo || p.sozlesmeNo, tesisatNo: r.tesisatNo || p.tesisatNo,
+      sozlesmeGucu: sozlesmeGucu(p), carpan: detay(p).carpan, oncekiYilTuketim: detay(p).gecmisYilKwh || null, oncekiYilTuketimDonem: p.donem
     };
     App.pages.tesisler.editAbonelik(null, null, prefill, function (a) {
       q.abId = a.id;
-      // Aynı EIC/sözleşme no'lu diğer faturalar da yeni aboneliğe eşleşsin
-      queue.forEach(function (x) { if (x.status === 'hazir' && !x.abId) x.abId = resolveAbonelik(x.record); });
+      queue.forEach(function (x) { if ((x.status === 'hazir' || x.status === 'sablonsuz') && !x.abId) x.abId = resolveAbonelik(x); });
       render(containerRef);
     });
+  }
+
+  function sablonlarPenceresi() {
+    var body = UI.el('div');
+    function ciz() {
+      var list = S.sablonList();
+      body.innerHTML = '<p class="muted">Şablon, bir tedarikçinin fatura biçiminde hangi değerin nerede olduğunu ve ne anlama geldiğini tanımlar. ' +
+        'Faturada tanıma metinlerinin hepsi geçiyorsa şablon otomatik uygulanır.</p>' +
+        (list.length ? '<table class="table"><thead><tr><th>Şablon</th><th>Tanıma metinleri</th><th class="num">Bilgi</th><th class="num">Kalem</th><th class="num">Yok sayılan</th><th>Güncelleme</th><th></th></tr></thead><tbody>' +
+          list.map(function (s) {
+            var say = function (t) { return s.tanimlar.filter(function (x) { return x.tur === t; }).length; };
+            return '<tr><td><b>' + U.escapeHtml(s.ad) + '</b></td><td>' + U.escapeHtml((s.anahtarlar || []).join(', ')) + '</td>' +
+              '<td class="num">' + (say('alan') + say('kural') + say('sabit')) + '</td><td class="num">' + say('kalem') + '</td><td class="num">' + say('yoksay') + '</td>' +
+              '<td>' + U.formatTRDate((s.guncelleme || '').slice(0, 10)) + '</td><td><button class="btn xs danger" data-sil="' + s.id + '">Sil</button></td></tr>';
+          }).join('') + '</tbody></table>' : '<p><i>Kayıtlı şablon yok.</i></p>');
+    }
+    body.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sil]');
+      if (!b) return;
+      var s = S.sablonGet(b.dataset.sil);
+      if (s && confirm('"' + s.ad + '" şablonu silinsin mi? Kayıtlı faturalar etkilenmez.')) { S.sablonDelete(s.id); ciz(); }
+    });
+    ciz();
+    UI.openModal('Fatura Şablonları', body, [{ label: 'Kapat', onclick: function () { UI.closeModal(); render(containerRef); } }]);
+    var box = document.querySelector('.modal-box');
+    if (box) box.classList.add('wide');
   }
 
   App.pages = App.pages || {};

@@ -8,7 +8,9 @@ düzenli olarak **Yedek Al** ile JSON yedeği alın.
 
 ## Modüller
 - **Tesisler** — tüketim tesisleri; altında birden çok abonelik (EIC, abone grubu, faturalar) ve üretim tesisleri (mahsuplaştığı aboneliklerle).
-- **Fatura Yükle** — PDF e-faturaları tarayıcıda okur (pdf.js), birleştirilmiş PDF’leri faturalara böler, aritmetik kontrolleri yapar, tesisle eşleştirip kaydeder. Desteklenen biçimler: CK Enerji Ortaklığı Toptan, CK Boğaziçi Perakende.
+- **Fatura Yükle** — PDF faturalar (çok faturalı PDF dahil) kayıtlı **şablonla** okunur; yalnız şablonda tanımlı değerler içeri aktarılır.
+  Fatura penceresi faturayı görüntüler, tanımlı değerleri üzerinde işaretler; "Otomatik tanımla" yerleşik okuyucunun bulduklarını şablona ekler,
+  kullanıcı değerlere tıklayarak tanım ekler/değiştirir/kaldırır. Tanımlanmamış bedel satırı veya tutmayan kontrol varsa fatura toplu kayıtta bekletilir.
 - **Veriler** — alttaki sekmelerle iki sayfa:
   - **Faturalar**: aboneliğe (veya tesisin tüm aboneliklerine) ait faturaların Excel benzeri tablosu (düzenleme, kopyala/yapıştır, geri al, gizleme, CSV).
   - **OSOS (Saatlik)**: sayaçların saatlik çekiş/veriş verileri (Excel/CSV içe aktarma, sütun eşleştirme) ve saatlik mahsuplaşma:
@@ -23,4 +25,5 @@ Her fatura üç parçada saklanır:
 ## Geliştirme
 - `js/fatura-parser.js` ayrıştırıcıyı test etmek için: `node tests/parser.test.js <fatura.pdf>`
 - OSOS çevirme ve saatlik mahsuplaşma testleri: `node tests/osos.test.js`
+- Şablon testi (otomatik şablonun tüm faturalarda aynı sonucu vermesi): `node tests/sablon.test.js <fatura.pdf> ...`
 - Mevzuat notları: `docs/BILGI_BANKASI.md`

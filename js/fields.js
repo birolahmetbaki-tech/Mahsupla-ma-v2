@@ -105,7 +105,29 @@
   }
 
   // Kayıt sistem alanları: standart alan değildir ama korunur
-  var SYSTEM_KEYS = { id: 1, tuketimTesisId: 1, abonelikId: 1, kaynak: 1, duzeltilen: 1, olusturma: 1, guncelleme: 1, kalemler: 1, detay: 1 };
+  var SYSTEM_KEYS = { id: 1, tuketimTesisId: 1, abonelikId: 1, kaynak: 1, duzeltilen: 1, olusturma: 1, guncelleme: 1, kalemler: 1, detay: 1, sablonId: 1 };
+
+  // Fatura penceresinde gösterilen alan anlamları
+  var ACIKLAMA = {
+    donem: 'Faturanın ait olduğu ay (YYYY-AA). Faturada yazmıyorsa okuma tarihlerinden hesaplanır.',
+    faturaNo: 'Faturanın seri/sıra numarası; aynı faturanın iki kez kaydedilmesini önler.',
+    faturaTarihi: 'Faturanın düzenlendiği tarih.',
+    tedarikci: 'Faturayı kesen elektrik tedarik şirketi.',
+    gunSayisi: 'İlk ve son okuma arasındaki gün sayısı.',
+    aktifKwh: 'Sayaçtan okunan, şebekeden çekilen toplam aktif enerji.',
+    t1Kwh: 'Gündüz zaman dilimi (06–17) çekilen enerji.',
+    t2Kwh: 'Puant zaman dilimi (17–22) çekilen enerji.',
+    t3Kwh: 'Gece zaman dilimi (22–06) çekilen enerji.',
+    faturaTutari: 'KDV dahil fatura toplamı.',
+    eic: 'Sayacın EIC kodu; faturayı aboneliğe eşleştirmek için kullanılır.',
+    sozlesmeNo: 'Tedarikçideki sözleşme / hesap numarası.',
+    tesisatNo: 'Dağıtım şirketi tesisat numarası.',
+    tuketiciGrubu: 'Tarife / abone grubu (ör. Sanayi OG Tek Terim).',
+    ilkOkuma: 'Sayacın ilk okuma tarihi.',
+    sonOkuma: 'Sayacın son okuma tarihi.',
+    kdvOrani: 'Uygulanan KDV oranı (%).',
+    bilgilendirme: 'Faturadaki açıklama / bilgilendirme notu.'
+  };
 
   // Kalem listesinde zaten bulunan tutar alanları detay'a yazılmaz
   var KALEMDE_OLAN = /^(t[123]|tek|ekT[123]|ekTek)(Tutar|Birim|FatKwh|Kwh)$|^(dagitim|guc)(Tutar|Miktar|Birim)$|^(reaktifTutar|gucAsimTutar|digerTutar|digerToplam|digerAciklama|muhtelifBedel|kesmeBaglama|tenzilBedeli|oncekiYuvarlama|guncelYuvarlama|enerjiFonu|trtPayi|enerjiToplam|skbToplam|kdvDisiTutar|enerjiBedeli|dagitimBedeli|digerBedeller|mahsupKwh|mahsupTL)$/;
@@ -133,7 +155,7 @@
     kdvMatrah: 'KDV matrahı (faturada, TL)', vergiToplam: 'Vergiler toplamı (TL)'
   };
 
-  var api = { GROUPS: GROUPS, FIELDS: FIELDS, byKey: byKey, compute: compute, checkStatus: checkStatus, split: split, SYSTEM_KEYS: SYSTEM_KEYS, DETAY_ADLARI: DETAY_ADLARI };
+  var api = { GROUPS: GROUPS, FIELDS: FIELDS, byKey: byKey, compute: compute, checkStatus: checkStatus, split: split, SYSTEM_KEYS: SYSTEM_KEYS, DETAY_ADLARI: DETAY_ADLARI, ACIKLAMA: ACIKLAMA };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else { root.App = root.App || {}; root.App.fields = api; }
 })(this);

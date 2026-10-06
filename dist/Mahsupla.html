@@ -113,7 +113,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .help { color: var(--muted); font-size: 11px; }
 
 /* Bildirim */
-.toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+.toasts { position: fixed; right: 16px; top: 60px; display: flex; flex-direction: column; gap: 8px; z-index: 80; pointer-events: none; }
 .toast { background: #13202f; color: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.2); transition: opacity .4s; max-width: 380px; }
 .toast.ok { background: var(--ok); }
 .toast.err { background: var(--err); }
@@ -300,6 +300,69 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .osos-preview .warn { color: var(--warn); }
 .ay-chip { display: inline-flex; align-items: center; gap: 2px; background: var(--head); border-radius: 4px; padding: 1px 6px; font-size: 12px; margin: 1px; }
 .ay-chip .x { border: 0; background: none; color: var(--err); cursor: pointer; font-size: 13px; padding: 0 2px; }
+
+/* Fatura penceresi */
+.modal-box.fatura-pencere { width: min(1500px, 98vw); height: 94vh; display: flex; flex-direction: column; }
+.modal:has(.fatura-pencere) { padding: 2vh 1vw; }
+.fp-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 470px; }
+.fp-sol { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); }
+.fp-araclar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px; flex-wrap: wrap; }
+.fp-olcek { min-width: 44px; text-align: center; }
+.fp-lejant { margin-left: auto; display: flex; gap: 10px; align-items: center; color: var(--muted); flex-wrap: wrap; }
+.lj { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+.fp-gorunum { flex: 1; overflow: auto; background: #e9edf2; position: relative; padding: 14px; }
+.fp-sayfa { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.18); }
+.fp-sayfa canvas { display: block; }
+.fp-katman { position: absolute; inset: 0; }
+.fp-kutu { position: absolute; border-radius: 2px; cursor: pointer; box-sizing: border-box; }
+.fp-kutu.serbest:hover { outline: 1px dashed #7a8899; background: rgba(120,136,153,.12); }
+.fp-kutu.alan, .lj.alan { background: rgba(31,111,235,.18); outline: 1.5px solid #1f6feb; }
+.fp-kutu.kalem, .lj.kalem { background: rgba(26,127,55,.16); outline: 1.5px solid #1a7f37; }
+.fp-kutu.detay, .lj.detay { background: rgba(130,80,223,.16); outline: 1.5px solid #8250df; }
+.fp-kutu.tanimsiz, .lj.tanimsiz { background: rgba(240,140,0,.22); outline: 2px solid #e08600; animation: fp-nabiz 1.6s infinite; }
+.fp-kutu.yoksay, .lj.yoksay { background: repeating-linear-gradient(45deg, rgba(120,120,120,.15) 0 3px, transparent 3px 6px); outline: 1px solid #b5bcc5; }
+@keyframes fp-nabiz { 50% { outline-color: rgba(224,134,0,.35); } }
+.fp-etiket { position: absolute; font: 600 9.5px var(--font); padding: 0 4px; border-radius: 3px; color: #fff; white-space: nowrap; pointer-events: none; line-height: 12px; opacity: .92; }
+.fp-etiket.alan { background: #1f6feb; } .fp-etiket.kalem { background: #1a7f37; } .fp-etiket.detay { background: #8250df; }
+.fp-pop { position: absolute; z-index: 5; width: 350px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.22); padding: 10px 12px; font-size: 13px; }
+.fp-pop-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.fp-pop-satir { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.fp-pop code { background: var(--head); padding: 0 4px; border-radius: 3px; font-size: 11.5px; }
+.fp-pop code.sec { background: var(--accent); color: #fff; }
+.fp-turler { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+.fp-pop label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.fp-turler label { flex-direction: row; font-weight: 500; align-items: center; gap: 4px; }
+.fp-pop input:not([type=radio]), .fp-pop select { font: inherit; font-weight: 400; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+.fp-onizleme { margin: 4px 0; }
+.fp-pop-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.fp-sag { overflow: auto; padding: 10px 14px; background: #fbfcfd; }
+.fp-blok { margin-bottom: 14px; }
+.fp-blok h4 { margin: 0 0 6px; }
+.fp-sablon { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; }
+.fp-sablon label { display: flex; flex-direction: column; font-size: 12px; font-weight: 600; gap: 2px; }
+.fp-sablon input, .fp-ab select { font: inherit; font-weight: 400; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; width: 100%; }
+.fp-tablo { font-size: 12px; }
+.fp-tablo td { white-space: normal; vertical-align: top; padding: 5px 6px; }
+.fp-tablo td small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
+.fp-tablo tr.eksik td { color: var(--muted); }
+.fp-tablo tr.zorunlu-eksik td { background: var(--err-bg); }
+.fp-tablo tr.zorunlu-eksik i { color: var(--err); font-weight: 600; }
+.fp-tablo select { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; }
+.fp-tanimsiz { border: 1px solid #f0d18a; background: var(--warn-bg); border-radius: 6px; padding: 8px; }
+.tz-satir { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #ead9a8; font-size: 12px; flex-wrap: wrap; }
+.tz-arac { display: flex; gap: 4px; align-items: center; }
+.tz-arac select { font: inherit; font-size: 12px; padding: 2px 4px; }
+.fp-durum { margin-right: auto; font-size: 13px; }
+.ok-text { color: var(--ok); font-weight: 600; } .warn-text { color: var(--warn); font-weight: 600; }
+.badge.warn { background: var(--warn-bg); color: var(--warn); }
+.fcard.sablonsuz { border-color: #f0d18a; }
+.fcard-ozet { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+.fcard-ozet i { color: var(--muted); font-style: normal; }
+.notes li.err { color: var(--err); font-weight: 600; } .notes li.ok { color: var(--ok); }
+@media (max-width: 1100px) { .fp-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+
+.fp-katman.etiketsiz .fp-etiket { display: none; }
+.fp-araclar label { display: inline-flex; gap: 4px; align-items: center; margin-left: 8px; }
 
 </style>
 </head>
@@ -597,7 +660,29 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   // Kayıt sistem alanları: standart alan değildir ama korunur
-  var SYSTEM_KEYS = { id: 1, tuketimTesisId: 1, abonelikId: 1, kaynak: 1, duzeltilen: 1, olusturma: 1, guncelleme: 1, kalemler: 1, detay: 1 };
+  var SYSTEM_KEYS = { id: 1, tuketimTesisId: 1, abonelikId: 1, kaynak: 1, duzeltilen: 1, olusturma: 1, guncelleme: 1, kalemler: 1, detay: 1, sablonId: 1 };
+
+  // Fatura penceresinde gösterilen alan anlamları
+  var ACIKLAMA = {
+    donem: 'Faturanın ait olduğu ay (YYYY-AA). Faturada yazmıyorsa okuma tarihlerinden hesaplanır.',
+    faturaNo: 'Faturanın seri/sıra numarası; aynı faturanın iki kez kaydedilmesini önler.',
+    faturaTarihi: 'Faturanın düzenlendiği tarih.',
+    tedarikci: 'Faturayı kesen elektrik tedarik şirketi.',
+    gunSayisi: 'İlk ve son okuma arasındaki gün sayısı.',
+    aktifKwh: 'Sayaçtan okunan, şebekeden çekilen toplam aktif enerji.',
+    t1Kwh: 'Gündüz zaman dilimi (06–17) çekilen enerji.',
+    t2Kwh: 'Puant zaman dilimi (17–22) çekilen enerji.',
+    t3Kwh: 'Gece zaman dilimi (22–06) çekilen enerji.',
+    faturaTutari: 'KDV dahil fatura toplamı.',
+    eic: 'Sayacın EIC kodu; faturayı aboneliğe eşleştirmek için kullanılır.',
+    sozlesmeNo: 'Tedarikçideki sözleşme / hesap numarası.',
+    tesisatNo: 'Dağıtım şirketi tesisat numarası.',
+    tuketiciGrubu: 'Tarife / abone grubu (ör. Sanayi OG Tek Terim).',
+    ilkOkuma: 'Sayacın ilk okuma tarihi.',
+    sonOkuma: 'Sayacın son okuma tarihi.',
+    kdvOrani: 'Uygulanan KDV oranı (%).',
+    bilgilendirme: 'Faturadaki açıklama / bilgilendirme notu.'
+  };
 
   // Kalem listesinde zaten bulunan tutar alanları detay'a yazılmaz
   var KALEMDE_OLAN = /^(t[123]|tek|ekT[123]|ekTek)(Tutar|Birim|FatKwh|Kwh)$|^(dagitim|guc)(Tutar|Miktar|Birim)$|^(reaktifTutar|gucAsimTutar|digerTutar|digerToplam|digerAciklama|muhtelifBedel|kesmeBaglama|tenzilBedeli|oncekiYuvarlama|guncelYuvarlama|enerjiFonu|trtPayi|enerjiToplam|skbToplam|kdvDisiTutar|enerjiBedeli|dagitimBedeli|digerBedeller|mahsupKwh|mahsupTL)$/;
@@ -625,7 +710,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     kdvMatrah: 'KDV matrahı (faturada, TL)', vergiToplam: 'Vergiler toplamı (TL)'
   };
 
-  var api = { GROUPS: GROUPS, FIELDS: FIELDS, byKey: byKey, compute: compute, checkStatus: checkStatus, split: split, SYSTEM_KEYS: SYSTEM_KEYS, DETAY_ADLARI: DETAY_ADLARI };
+  var api = { GROUPS: GROUPS, FIELDS: FIELDS, byKey: byKey, compute: compute, checkStatus: checkStatus, split: split, SYSTEM_KEYS: SYSTEM_KEYS, DETAY_ADLARI: DETAY_ADLARI, ACIKLAMA: ACIKLAMA };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else { root.App = root.App || {}; root.App.fields = api; }
 })(this);
@@ -683,11 +768,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   // userMap: { 'bicim|ad': kategori, '*|ad': kategori }
-  function resolve(ad, bicim, userMap) {
+  // sablonMap: { normAd: kategori } — şablonda tanımlı kalem kategorileri (kullanıcı sözlüğünden sonra, varsayılandan önce)
+  function resolve(ad, bicim, userMap, sablonMap) {
     userMap = userMap || {};
     var n = norm(ad);
     var u = userMap[(bicim || 'genel') + '|' + n] || userMap['*|' + n];
     if (u) return { kategori: u, kaynak: 'kullanici' };
+    if (sablonMap && sablonMap[n]) return { kategori: sablonMap[n], kaynak: 'sablon' };
     var v = varsayilan(ad, bicim);
     if (v) return { kategori: v, kaynak: 'varsayilan' };
     return { kategori: 'tanimsiz', kaynak: 'yok' };
@@ -696,12 +783,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function r2(x) { return Math.round(x * 100) / 100; }
 
   // Kalemlerden standart özet alanlarını hesaplar. Elle düzeltilmiş alanlara dokunmaz.
-  function applySummary(rec, userMap) {
+  function applySummary(rec, userMap, sablonMap) {
     var kalemler = rec.kalemler || [];
     var top = {}, tanimsiz = [];
     var mahsupKwh = 0, mahsupKwhVar = false;
     kalemler.forEach(function (k) {
-      var res = resolve(k.ad, rec.bicim, userMap);
+      var res = resolve(k.ad, rec.bicim, userMap, sablonMap);
       k.kategori = res.kategori;
       var kat = res.kategori === 'tanimsiz' ? 'diger' : res.kategori; // tanımsızlar onaylanana kadar "diğer"e eklenir
       if (res.kategori === 'tanimsiz') tanimsiz.push(k.ad);
@@ -1329,8 +1416,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
             pages.push({
               page: pn,
               width: vp.width,
+              height: vp.height,
               items: tc.items.filter(function (it) { return it.str && it.str.trim(); }).map(function (it) {
-                return { str: it.str, x: it.transform[4], y: vp.height - it.transform[5] };
+                // w/h: fatura penceresinde değerlerin üzerine kutu çizmek için
+                return { str: it.str, x: it.transform[4], y: vp.height - it.transform[5], w: it.width || 0, h: it.height || Math.abs(it.transform[3]) || 8 };
               })
             });
           });
@@ -1346,7 +1435,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     var out = [];
     pages.forEach(function (pg) {
       var starts = pg.items.some(function (it) { return /^Fatura (Sıra )?No\b/i.test(it.str.trim()); });
-      if (starts || !out.length) out.push({ pageFrom: pg.page, pageTo: pg.page, items: pg.items, width: pg.width });
+      if (starts || !out.length) out.push({ pageFrom: pg.page, pageTo: pg.page, items: pg.items, width: pg.width, height: pg.height });
       else out[out.length - 1].pageTo = pg.page;
     });
     return out;
@@ -1355,6 +1444,375 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   var api = { parse: parse, extractItems: extractItems, splitInvoices: splitInvoices, numDot: numDot };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else { root.App = root.App || {}; root.App.faturaParser = api; }
+})(this);
+
+</script>
+  <script>/* js/sablon.js */
+/* Fatura şablonları: bir fatura biçiminde hangi değerin nerede durduğunu ve ne anlama geldiğini tanımlar.
+   Yalnız şablonda tanımlı değerler içeri aktarılır; tanımsız bedel satırları ayrıca listelenir.
+
+   Şablon: { id, ad, anahtarlar: [faturada geçen tanıma metinleri], tanimlar: [...] }
+   Tanım türleri:
+     alan  : standart fatura alanı  { hedef, kolon, etiket, deger: 'sayi'|'tarih'|'donem'|'metin', sira, sayiBicimi: 'tr'|'nokta' }
+     kalem : bedel satırı           { kolon, etiket, ad, kategori, miktarBirimi }  (etiketi eşleşen her satır bir kalem olur)
+     detay : ek bilgi               { ad, kolon, etiket, deger, sira, sayiBicimi }
+     sabit : sabit değer            { hedef, sabit }
+     kural : hesaplanan alan        { hedef, kural: 'okumaOrtasi'|'faturaTarihi'|'okumaDahil'|'okumaFarki' }
+     yoksay: bilinçli olarak alınmayan satır { kolon, etiket }
+   Satırlar etiketlerinden (satırın başındaki metin) bulunur; böylece satır sayısı değişse de değerler doğru yerden okunur. */
+(function (root) {
+  'use strict';
+  var NODE = typeof require !== 'undefined' && typeof module !== 'undefined';
+  var U = NODE ? require('./util.js') : root.App.util;
+  var F = NODE ? require('./fields.js') : root.App.fields;
+  var K = NODE ? require('./kalemler.js') : root.App.kalemler;
+
+  var NUM_RE = /^-?(\d[\d.,]*|,\d+)\s*(TL)?$/;
+  var PARA_RE = /^-?\d{1,3}(\.\d{3})*,\d{2}\s*(TL)?$|^-?\d+,\d{2}\s*(TL)?$/;
+  var TARIH_RE = /(\d{1,2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{4})/g;
+
+  function norm(s) { return K.norm(s); }
+
+  // Sayı: virgül varsa Türkçe biçim; yoksa biçime göre (nokta = ondalık)
+  function sayi(tok, bicim) {
+    if (tok === null || tok === undefined) return null;
+    var s = String(tok).replace(/TL/gi, '').replace(/\s/g, '');
+    if (s.indexOf(',') >= 0 || bicim === 'tr') return U.parseTRNumber(s);
+    var n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+  // Sayı biçimi tahmini: değerin kendisine, belirsizse aynı satırdaki diğer sayılara bakılır
+  function bicimTahmin(tok, satir) {
+    var s = String(tok).trim();
+    if (s.indexOf(',') >= 0) return 'tr';
+    if (s.indexOf('.') < 0) return 'tr';
+    if (!/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(s)) return 'nokta'; // 0.376, 5007.490, 1.35 → ondalık nokta
+    if (satir) {
+      var digerleri = satir.degerler.map(function (o) { return String(o.str).trim(); }).filter(function (x) { return x !== s && /\d/.test(x); });
+      if (digerleri.some(function (x) { return x.indexOf(',') >= 0; })) return 'tr';
+      // Satırda binlik biçimine uymayan noktalı sayı varsa (77205.480, 15180.00) satır ondalık nokta kullanıyor
+      if (digerleri.some(function (x) { return x.indexOf('.') >= 0 && !/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(x.replace(/[^\d.\-]/g, '')); })) return 'nokta';
+    }
+    return 'tr';
+  }
+
+  /* Mantıksal satırlar: sütunlara ayrılmış, etiket + değer öğelerine bölünmüş, sarılmış etiketleri birleştirilmiş satırlar.
+     Her satır: { id, kolon, y, etiket, etiketNorm, degerler: [öğe], ogeler: [öğe], metin } ; öğe: { str, x, y, w, h, i } */
+  function satirlar(items, width) {
+    var ozet = items.filter(function (it) { return /^Fatura Özeti/i.test(String(it.str).trim()); })[0];
+    var split = ozet ? ozet.x - 4 : width * 0.48;
+    var out = [];
+    ['left', 'right'].forEach(function (kolon) {
+      var sel = items.map(function (it, i) { return Object.assign({ i: i }, it); })
+        .filter(function (it) { return String(it.str).trim() && (kolon === 'left' ? it.x < split : it.x >= split); })
+        .sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+      var lines = [];
+      sel.forEach(function (it) {
+        var last = lines[lines.length - 1];
+        if (last && Math.abs(last.y - it.y) <= 2.5) last.ogeler.push(it); else lines.push({ y: it.y, ogeler: [it] });
+      });
+      var mant = [];
+      lines.forEach(function (l) {
+        l.ogeler.sort(function (a, b) { return a.x - b.x; });
+        bol(l);
+        var prev = mant[mant.length - 1];
+        var yakin = prev && l.y - prev.y < 9.5;
+        // Yalnız değer içeren satır, hemen üstteki yalnız etiketli satıra eklenir
+        if (yakin && !l.etiket && l.degerler.length && prev.etiket && !prev.degerler.length) {
+          prev.degerler = l.degerler; prev.ogeler = prev.ogeler.concat(l.ogeler); prev.y2 = l.y; return;
+        }
+        // Parantezi kapanmamış etiketin devamı ("Enerji Bedeli-Gündüz(Ek" + "Tüketim)")
+        if (yakin && l.etiket && !l.degerler.length && prev.degerler.length && prev.etiket.split('(').length > prev.etiket.split(')').length) {
+          prev.etiket += ' ' + l.etiket; prev.ogeler = prev.ogeler.concat(l.ogeler); return;
+        }
+        l.kolon = kolon;
+        mant.push(l);
+      });
+      mant.forEach(function (l) {
+        l.etiketNorm = norm(l.etiket);
+        l.metin = l.ogeler.map(function (o) { return String(o.str).trim(); }).join(' ');
+        l.degerMetni = l.degerler.map(function (o) { return String(o.str).trim(); }).join(' ');
+        l.id = kolon[0] + Math.round(l.y * 10);
+        out.push(l);
+      });
+    });
+    return out;
+  }
+
+  // Satırı etiket ve değer öğelerine böler. "Etiket : değer" ve "VKN:123" biçimleri desteklenir.
+  function bol(l) {
+    var ogeler = [];
+    l.ogeler.forEach(function (o) {
+      var s = String(o.str).trim();
+      var m = s.match(/^([^:\d]{2,}?)\s*:\s*(\S.*)$/);
+      if (m && !/^https?/i.test(s)) {
+        var oran = m[1].length / s.length;
+        ogeler.push(Object.assign({}, o, { str: m[1] + ':', w: o.w * oran }));
+        ogeler.push(Object.assign({}, o, { str: m[2], x: o.x + o.w * oran, w: o.w * (1 - oran) }));
+      } else ogeler.push(o);
+    });
+    l.ogeler = ogeler;
+    var ikiNokta = -1;
+    ogeler.forEach(function (o, i) { var s = String(o.str).trim(); if (ikiNokta < 0 && (s === ':' || /:$/.test(s))) ikiNokta = i; });
+    var etiket = [], deger = [];
+    if (ikiNokta >= 0) {
+      ogeler.forEach(function (o, i) { var s = String(o.str).trim(); if (i <= ikiNokta) { if (s !== ':') etiket.push(s.replace(/\s*:$/, '')); } else if (s !== ':') deger.push(o); });
+    } else {
+      ogeler.forEach(function (o) {
+        var s = String(o.str).trim();
+        if (!deger.length && !NUM_RE.test(s) && !/^\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4}$/.test(s)) etiket.push(s); else deger.push(o);
+      });
+    }
+    l.etiket = etiket.join(' ').trim();
+    l.degerler = deger;
+  }
+
+  // Satırdaki değer listeleri (sıra numarasıyla seçilebilir)
+  function sayiOgeleri(l) { return l.degerler.filter(function (o) { return NUM_RE.test(String(o.str).trim()); }); }
+  function tarihler(l) {
+    var s = l.degerMetni || '', m, out = [];
+    TARIH_RE.lastIndex = 0;
+    while ((m = TARIH_RE.exec(s))) out.push(m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2));
+    return out;
+  }
+  function donemler(l) {
+    var s = (l.degerMetni || '').replace(TARIH_RE, ' '), m, out = [], re = /(\d{1,2})\s*-\s*(\d{4})/g;
+    while ((m = re.exec(s))) out.push(m[2] + '-' + ('0' + m[1]).slice(-2));
+    return out;
+  }
+
+  // Tanımın satırdan okuduğu değer ve kullandığı öğeler
+  function degerOku(l, t) {
+    if (t.deger === 'sayi') {
+      var ns = sayiOgeleri(l), o = ns[t.sira || 0];
+      return o ? { deger: sayi(o.str, t.sayiBicimi), ogeler: [o] } : null;
+    }
+    if (t.deger === 'tarih') { var ts = tarihler(l); return ts[t.sira || 0] ? { deger: ts[t.sira || 0], ogeler: l.degerler } : null; }
+    if (t.deger === 'donem') { var ds = donemler(l); return ds[t.sira || 0] ? { deger: ds[t.sira || 0], ogeler: l.degerler } : null; }
+    var metin = t.sira !== undefined && t.sira !== null && l.degerler[t.sira] ? String(l.degerler[t.sira].str).trim() : l.degerMetni;
+    return metin ? { deger: metin.replace(/#$/, ''), ogeler: t.sira !== undefined && t.sira !== null && l.degerler[t.sira] ? [l.degerler[t.sira]] : l.degerler } : null;
+  }
+
+  function satirBul(lines, t) {
+    return lines.filter(function (l) { return (!t.kolon || l.kolon === t.kolon) && l.etiketNorm === t.etiket; });
+  }
+
+  /* Şablonu faturaya uygular.
+     Dönüş: { record, bulunan: [{ tanim, deger, ogeler, satir }], eksik: [tanim], tanimsiz: [satır], yoksayilan: [satır], lines } */
+  function uygula(items, width, sablon, userMap) {
+    var lines = satirlar(items, width);
+    var raw = { bicim: sablon.id }, detay = {}, kalemler = [], bulunan = [], eksik = [];
+    var kullanilan = {};
+    (sablon.tanimlar || []).forEach(function (t) {
+      if (t.tur === 'sabit') { raw[t.hedef] = t.sabit; return; }
+      if (t.tur === 'kural') return;
+      var ls = satirBul(lines, t);
+      if (t.tur === 'yoksay') { ls.forEach(function (l) { kullanilan[l.id] = 'yoksay'; }); return; }
+      if (t.tur === 'kalem') {
+        ls.forEach(function (l) {
+          var ns = sayiOgeleri(l).map(function (o) { return sayi(o.str); });
+          if (!ns.length) return;
+          var k = { ad: t.ad || l.etiket, miktar: ns.length >= 3 ? ns[0] : null, miktarBirimi: ns.length >= 3 ? (t.miktarBirimi || 'kWh') : null,
+            birim: ns.length >= 3 ? ns[1] : null, tutar: ns[ns.length - 1] };
+          kalemler.push(k);
+          kullanilan[l.id] = 'kalem';
+          bulunan.push({ tanim: t, deger: k.tutar, ogeler: sayiOgeleri(l), satir: l, kalem: k });
+        });
+        return;
+      }
+      var hit = null, satir = null;
+      for (var i = 0; i < ls.length && !hit; i++) { hit = degerOku(ls[i], t); satir = ls[i]; }
+      if (!hit || hit.deger === null || hit.deger === '') { if (t.tur === 'alan') eksik.push(t); return; }
+      if (!kullanilan[satir.id]) kullanilan[satir.id] = t.tur;
+      bulunan.push({ tanim: t, deger: hit.deger, ogeler: hit.ogeler, satir: satir });
+      if (t.tur === 'alan') raw[t.hedef] = hit.deger; else detay[t.ad] = hit.deger;
+    });
+    // Kurallar (dönem, gün sayısı vb. faturada yazmıyorsa)
+    (sablon.tanimlar || []).filter(function (t) { return t.tur === 'kural'; }).forEach(function (t) {
+      var v = kural(t.kural, raw);
+      if (v !== null && v !== undefined) raw[t.hedef] = v;
+    });
+    if (!raw.donem) raw.donem = kural('okumaOrtasi', raw) || kural('faturaTarihi', raw);
+
+    var rec = F.split(raw);
+    rec.detay = detay;
+    rec.kalemler = kalemler;
+    rec.sablonId = sablon.id;
+    K.applySummary(rec, userMap, sablonKategorileri(sablon));
+
+    // Tanımsız bedel satırları: para biçimli değer içeren, hiçbir tanımın kullanmadığı satırlar
+    var tanimsiz = lines.filter(function (l) {
+      return !kullanilan[l.id] && l.degerler.some(function (o) { return PARA_RE.test(String(o.str).trim()); });
+    });
+    var yoksayilan = lines.filter(function (l) { return kullanilan[l.id] === 'yoksay'; });
+    return { record: rec, bulunan: bulunan, eksik: eksik, tanimsiz: tanimsiz, yoksayilan: yoksayilan, lines: lines };
+  }
+
+  function sablonKategorileri(sablon) {
+    var m = {};
+    (sablon.tanimlar || []).forEach(function (t) { if (t.tur === 'kalem' && t.kategori) m[norm(t.ad)] = t.kategori; });
+    return m;
+  }
+
+  function kural(ad, r) {
+    if (ad === 'okumaOrtasi' && r.ilkOkuma && r.sonOkuma) {
+      var mid = new Date((Date.parse(r.ilkOkuma) + Date.parse(r.sonOkuma)) / 2);
+      return mid.getUTCFullYear() + '-' + ('0' + (mid.getUTCMonth() + 1)).slice(-2);
+    }
+    if (ad === 'faturaTarihi' && r.faturaTarihi) return String(r.faturaTarihi).slice(0, 7);
+    if (ad === 'okumaDahil' && r.ilkOkuma && r.sonOkuma) return U.daysBetween(r.ilkOkuma, r.sonOkuma);
+    if (ad === 'okumaFarki' && r.ilkOkuma && r.sonOkuma) return U.daysBetween(r.ilkOkuma, r.sonOkuma) - 1;
+    return null;
+  }
+
+  // Şablonun anahtar metinleri faturada geçiyorsa eşleşir; en çok anahtarı tutan şablon seçilir.
+  function bul(items, sablonlar) {
+    var metin = items.map(function (it) { return String(it.str); }).join(' ').toUpperCase().replace(/\s+/g, ' ');
+    var best = null;
+    (sablonlar || []).forEach(function (s) {
+      var a = (s.anahtarlar || []).filter(Boolean);
+      if (!a.length) return;
+      var ok = a.every(function (k) { return metin.indexOf(String(k).toUpperCase().replace(/\s+/g, ' ')) >= 0; });
+      if (ok && (!best || a.length > best.anahtarlar.length)) best = s;
+    });
+    return best;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Otomatik tanımlama: yerleşik ayrıştırıcının bulduğu değerleri faturadaki yerlerine bağlayıp şablon üretir.
+  var ALAN_IPUCU = {
+    faturaNo: /fatura (s[ıi]ra )?no/, faturaTarihi: /fatura (tarihi|d[öo]nemi)/, donem: /fatura d[öo]nemi/, gunSayisi: /okuma g[üu]n/,
+    aktifKwh: /^aktif$|tek zamanl/, t1Kwh: /^g[üu]nd[üu]z$/, t2Kwh: /^puant$/, t3Kwh: /^gece$/, faturaTutari: /fatura tutar/,
+    eic: /eic|etso/, sozlesmeNo: /s[öo]zle[şs]me/, tesisatNo: /tesisat/, tuketiciGrubu: /t[üu]ketici grubu/, ilkOkuma: /okuma g[üu]n/, sonOkuma: /okuma g[üu]n/
+  };
+  var ALAN_TUR = { faturaTarihi: 'tarih', ilkOkuma: 'tarih', sonOkuma: 'tarih', donem: 'donem', faturaNo: 'metin', eic: 'metin', sozlesmeNo: 'metin', tesisatNo: 'metin', tuketiciGrubu: 'metin' };
+
+  function otomatikTanimla(items, width, parsed, opts) {
+    opts = opts || {};
+    var lines = satirlar(items, width);
+    var r = parsed.record, meta = parsed.meta || {};
+    var tanimlar = [], kullanilan = {};
+    var id = 0;
+    function yeni(t) { t.id = 't' + (++id); tanimlar.push(t); return t; }
+
+    function alanBul(hedef, deger) {
+      var tur = ALAN_TUR[hedef] || 'sayi';
+      var adaylar = [];
+      lines.forEach(function (l) {
+        if (tur === 'sayi') {
+          sayiOgeleri(l).forEach(function (o, i) {
+            var s = String(o.str).trim();
+            [bicimTahmin(s, l), 'tr', 'nokta'].some(function (b) {
+              var v = sayi(s, b);
+              if (v !== null && Math.abs(v - deger) <= Math.max(0.005, Math.abs(deger) * 1e-9)) { adaylar.push({ l: l, sira: i, sayiBicimi: b }); return true; }
+              return false;
+            });
+          });
+        } else if (tur === 'tarih') {
+          tarihler(l).forEach(function (d, i) { if (d === deger) adaylar.push({ l: l, sira: i }); });
+        } else if (tur === 'donem') {
+          donemler(l).forEach(function (d, i) { if (d === deger) adaylar.push({ l: l, sira: i }); });
+        } else {
+          var hedefMetin = String(deger).replace(/\s+/g, ' ').trim();
+          if (l.degerMetni && l.degerMetni.replace(/\s+/g, ' ').trim() === hedefMetin) adaylar.push({ l: l, sira: null });
+          else l.degerler.forEach(function (o, i) { if (String(o.str).trim() === hedefMetin) adaylar.push({ l: l, sira: i }); });
+        }
+      });
+      if (!adaylar.length) return null;
+      var ipucu = ALAN_IPUCU[hedef];
+      var uygun = (ipucu && adaylar.filter(function (a) { return ipucu.test(a.l.etiketNorm); })) || [];
+      if (!uygun.length) uygun = adaylar.filter(function (a) { return a.l.etiket; });
+      // Aynı satırda birden çok eşleşme varsa en sağdaki (örn. ilk endeks 0 iken son endeks = tüketim)
+      var secilen = uygun.filter(function (a) { return a.l === (uygun[0] && uygun[0].l); }).pop() || null;
+      if (!secilen || !secilen.l.etiket) return null;
+      return yeni({ tur: 'alan', hedef: hedef, kolon: secilen.l.kolon, etiket: secilen.l.etiketNorm, etiketMetni: secilen.l.etiket, deger: tur, sira: secilen.sira, sayiBicimi: secilen.sayiBicimi });
+    }
+
+    ['faturaNo', 'faturaTarihi', 'donem', 'gunSayisi', 'aktifKwh', 't1Kwh', 't2Kwh', 't3Kwh', 'faturaTutari',
+     'eic', 'sozlesmeNo', 'tesisatNo', 'tuketiciGrubu', 'ilkOkuma', 'sonOkuma'].forEach(function (k) {
+      if (r[k] === undefined || r[k] === null || r[k] === '') return;
+      var t = alanBul(k, r[k]);
+      if (!t) {
+        if (k === 'donem') yeni({ tur: 'kural', hedef: 'donem', kural: 'okumaOrtasi' });
+        if (k === 'gunSayisi' && r.ilkOkuma && r.sonOkuma) yeni({ tur: 'kural', hedef: 'gunSayisi', kural: kural('okumaDahil', r) === r.gunSayisi ? 'okumaDahil' : 'okumaFarki' });
+      }
+    });
+    if (r.tedarikci) yeni({ tur: 'sabit', hedef: 'tedarikci', sabit: r.tedarikci });
+
+    // Kalemler: tutarı ve etiketi faturadaki satırla eşleşen her bedel satırı
+    (r.kalemler || []).forEach(function (k) {
+      if (typeof k.tutar !== 'number') return;
+      var adaylar = lines.filter(function (l) {
+        if (kullanilan[l.id] || !l.etiket) return false;
+        var ns = sayiOgeleri(l);
+        if (!ns.length) return false;
+        var son = sayi(ns[ns.length - 1].str);
+        return son !== null && Math.abs(son - k.tutar) <= 0.005;
+      });
+      var adN = norm(k.ad);
+      var aday = adaylar.filter(function (l) { return l.etiketNorm === adN || adN.indexOf(l.etiketNorm) >= 0 || l.etiketNorm.indexOf(adN) >= 0; })[0] ||
+        adaylar.filter(function (l) { return !/toplam/.test(l.etiketNorm); })[0] || null;
+      if (!aday) return;
+      kullanilan[aday.id] = true;
+      var var_ = tanimlar.some(function (t) { return t.tur === 'kalem' && t.kolon === aday.kolon && t.etiket === aday.etiketNorm; });
+      if (!var_) yeni({ tur: 'kalem', kolon: aday.kolon, etiket: aday.etiketNorm, etiketMetni: aday.etiket, ad: k.ad, kategori: K.resolve(k.ad, r.bicim, opts.userMap).kategori, miktarBirimi: k.miktarBirimi || 'kWh' });
+    });
+
+    // Kalan para biçimli satırlar (toplamlar, ara toplamlar): bilinçli olarak yok sayılır
+    var alanSatirlari = {};
+    tanimlar.forEach(function (t) { if (t.tur === 'alan') alanSatirlari[t.kolon + '|' + t.etiket] = true; });
+    lines.forEach(function (l) {
+      if (kullanilan[l.id] || alanSatirlari[l.kolon + '|' + l.etiketNorm] || !l.etiket) return;
+      if (!l.degerler.some(function (o) { return PARA_RE.test(String(o.str).trim()); })) return;
+      if (tanimlar.some(function (t) { return (t.tur === 'yoksay' || t.tur === 'kalem') && t.kolon === l.kolon && t.etiket === l.etiketNorm; })) return;
+      // Bu faturada 0 olsa da bilinen bir bedel satırıysa (muhtelif, yuvarlama, fon...) kalem olarak tanımla; toplamları yok say
+      var kat = !/toplam/.test(l.etiketNorm) ? K.varsayilan(l.etiket, r.bicim) : null;
+      if (kat) yeni({ tur: 'kalem', kolon: l.kolon, etiket: l.etiketNorm, etiketMetni: l.etiket, ad: l.etiket, kategori: kat, miktarBirimi: 'kWh' });
+      else yeni({ tur: 'yoksay', kolon: l.kolon, etiket: l.etiketNorm, etiketMetni: l.etiket });
+    });
+
+    var anahtarlar = [];
+    if (meta.tedarikciVkn) anahtarlar.push(meta.tedarikciVkn);
+    else if (r.tedarikci) anahtarlar.push(r.tedarikci);
+    return { id: opts.id || r.bicim || ('sablon_' + Date.now().toString(36)), ad: opts.ad || r.tedarikci || 'Yeni şablon', anahtarlar: anahtarlar, tanimlar: tanimlar };
+  }
+
+  // Yeni tanımları mevcut şablona ekler; aynı hedef/satır için var olan tanım korunur. Dönüş: eklenen tanım sayısı
+  function birlestir(sablon, yeni) {
+    var n = 0;
+    function anahtar(t) {
+      if (t.tur === 'alan' || t.tur === 'kural' || t.tur === 'sabit') return 'h|' + t.hedef;
+      return 's|' + t.kolon + '|' + t.etiket;
+    }
+    var mevcut = {};
+    sablon.tanimlar.forEach(function (t) { mevcut[anahtar(t)] = true; });
+    yeni.tanimlar.forEach(function (t) {
+      if (mevcut[anahtar(t)]) return;
+      // Alan için hem kural hem alan olmasın: faturada bulunan alan kuralın yerini alır
+      if (t.tur === 'alan') sablon.tanimlar = sablon.tanimlar.filter(function (x) { return !(x.tur === 'kural' && x.hedef === t.hedef); });
+      t.id = 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      sablon.tanimlar.push(t); mevcut[anahtar(t)] = true; n++;
+    });
+    (yeni.anahtarlar || []).forEach(function (a) { if (sablon.anahtarlar.indexOf(a) < 0 && !sablon.anahtarlar.length) sablon.anahtarlar.push(a); });
+    return n;
+  }
+
+  // Seçilen satır/değerden tanım üretir (elle tanımlama)
+  function tanimOlustur(satir, secim) {
+    var t = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tur: secim.tur, kolon: satir.kolon, etiket: satir.etiketNorm, etiketMetni: satir.etiket };
+    if (secim.tur === 'alan' || secim.tur === 'detay') {
+      t.deger = secim.deger; t.sira = secim.sira; t.sayiBicimi = secim.sayiBicimi;
+      if (secim.tur === 'alan') t.hedef = secim.hedef; else t.ad = secim.ad;
+    } else if (secim.tur === 'kalem') {
+      t.ad = secim.ad || satir.etiket; t.kategori = secim.kategori; t.miktarBirimi = secim.miktarBirimi || 'kWh';
+    }
+    return t;
+  }
+
+  var api = { satirlar: satirlar, uygula: uygula, bul: bul, otomatikTanimla: otomatikTanimla, tanimOlustur: tanimOlustur, birlestir: birlestir, sablonKategorileri: sablonKategorileri,
+    sayiOgeleri: sayiOgeleri, tarihler: tarihler, donemler: donemler, sayi: sayi, bicimTahmin: bicimTahmin, degerOku: degerOku, PARA_RE: PARA_RE, NUM_RE: NUM_RE };
+  if (NODE) module.exports = api;
+  else { root.App = root.App || {}; root.App.sablon = api; }
 })(this);
 
 </script>
@@ -1369,7 +1827,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   var listeners = [];
 
   function empty() {
-    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {} };
+    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {}, sablonlar: [] };
   }
 
   // Eksik koleksiyonları ekler; sürüm numarasına dokunmaz (eski veri sürüm 1 sayılır).
@@ -1547,7 +2005,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
   function faturaSave(f, silent) {
     f.guncelleme = new Date().toISOString();
-    if (f.kalemler) root.App.kalemler.applySummary(f, db.kalemEslestirme);
+    if (f.kalemler) root.App.kalemler.applySummary(f, db.kalemEslestirme, sablonHaritasi(f.sablonId));
     if (!f.id) { f.id = U.uid('ft'); f.olusturma = f.guncelleme; db.faturalar.push(f); }
     else {
       var i = db.faturalar.findIndex(function (x) { return x.id === f.id; });
@@ -1559,6 +2017,23 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function faturaDelete(id) {
     db.faturalar = db.faturalar.filter(function (f) { return f.id !== id; });
     save();
+  }
+
+  // --- Fatura şablonları (bkz. sablon.js)
+  function sablonList() { return db.sablonlar.slice().sort(function (a, b) { return String(a.ad).localeCompare(String(b.ad), 'tr'); }); }
+  function sablonGet(id) { return db.sablonlar.find(function (s) { return s.id === id; }) || null; }
+  function sablonSave(sb) {
+    sb.guncelleme = new Date().toISOString();
+    var i = db.sablonlar.findIndex(function (x) { return x.id === sb.id; });
+    if (i >= 0) db.sablonlar[i] = sb; else db.sablonlar.push(sb);
+    recomputeAll(true);
+    save();
+    return sb;
+  }
+  function sablonDelete(id) { db.sablonlar = db.sablonlar.filter(function (s) { return s.id !== id; }); save(); }
+  function sablonHaritasi(id) {
+    var sb = id ? sablonGet(id) : null;
+    return sb && root.App.sablon ? root.App.sablon.sablonKategorileri(sb) : null;
   }
 
   // --- Kalem eşleştirme sözlüğü
@@ -1574,7 +2049,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   // Sözlük değişince tüm faturaların özetini yeniden hesaplar (elle düzeltilen alanlara dokunmaz)
   function recomputeAll(silent) {
     var K = root.App.kalemler;
-    db.faturalar.forEach(function (f) { if (f.kalemler) K.applySummary(f, db.kalemEslestirme); });
+    db.faturalar.forEach(function (f) { if (f.kalemler) K.applySummary(f, db.kalemEslestirme, sablonHaritasi(f.sablonId)); });
     if (!silent) save();
   }
   // Kayıtlı faturalarda geçen tüm kalem adları (biçim bazında), örnek tutar ve sayı ile
@@ -1612,6 +2087,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         (d[k] || []).forEach(function (x) { if (!ids[x.id]) db[k].push(x); });
       });
       Object.keys(d.kalemEslestirme || {}).forEach(function (k) { if (!db.kalemEslestirme[k]) db.kalemEslestirme[k] = d.kalemEslestirme[k]; });
+      (d.sablonlar || []).forEach(function (sb) { if (!sablonGet(sb.id)) db.sablonlar.push(sb); });
       recomputeAll(true);
     } else {
       migrate(d);
@@ -1630,6 +2106,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     abonelikList: abonelikList, abonelikGet: abonelikGet, abonelikSave: abonelikSave, abonelikDelete: abonelikDelete, abonelikMatch: abonelikMatch,
     uretimList: uretimList, uretimGet: uretimGet, uretimSave: uretimSave, uretimDelete: uretimDelete,
     faturaList: faturaList, faturaGet: faturaGet, faturaSave: faturaSave, faturaDelete: faturaDelete, faturaFindDuplicate: faturaFindDuplicate,
+    sablonList: sablonList, sablonGet: sablonGet, sablonSave: sablonSave, sablonDelete: sablonDelete,
     eslestirme: eslestirme, eslestirmeSet: eslestirmeSet, recomputeAll: recomputeAll, kalemAdlari: kalemAdlari,
     exportJSON: exportJSON, importJSON: importJSON, stats: stats
   };
@@ -2180,6 +2657,418 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 })(this);
 
 </script>
+  <script>/* js/fatura-pencere.js */
+/* Fatura penceresi: yüklenen faturayı görüntüler, şablondaki tanımları faturanın üzerinde işaretler ve düzenletir.
+   Solda fatura (PDF görüntüsü + tıklanabilir değer kutuları), sağda tanımlar, tanımlanmamış satırlar ve kontroller.
+   Yalnız tanımlı değerler içeri aktarılır. */
+(function (root) {
+  'use strict';
+  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, K = App.kalemler, SB = App.sablon;
+
+  // Elle seçilebilecek fatura alanları (bedel toplamları kalemlerden hesaplandığı için listede yok)
+  var ALAN_SECENEKLERI = ['donem', 'faturaNo', 'faturaTarihi', 'tedarikci', 'gunSayisi', 'aktifKwh', 't1Kwh', 't2Kwh', 't3Kwh', 'faturaTutari',
+    'eic', 'sozlesmeNo', 'tesisatNo', 'tuketiciGrubu', 'ilkOkuma', 'sonOkuma', 'kdvOrani', 'bilgilendirme'];
+  var ZORUNLU = ['donem', 'faturaNo', 'aktifKwh', 'faturaTutari'];
+  var VARSAYILAN_TUR = { faturaTarihi: 'tarih', ilkOkuma: 'tarih', sonOkuma: 'tarih', donem: 'donem', faturaNo: 'metin', eic: 'metin', sozlesmeNo: 'metin',
+    tesisatNo: 'metin', tuketiciGrubu: 'metin', tedarikci: 'metin', bilgilendirme: 'metin' };
+  var RENK = { alan: 'alan', kalem: 'kalem', detay: 'detay' };
+
+  var st = null; // { q, sablon, sonuc, olcek, secili }
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function fmtDeger(hedef, v) {
+    if (v === null || v === undefined || v === '') return '';
+    var f = F.byKey[hedef];
+    if (typeof v === 'number') return U.formatTRNumber(v, f && f.dec !== undefined ? f.dec : (Math.abs(v) % 1 ? 3 : 0));
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return U.formatTRDate(v);
+    if (/^\d{4}-\d{2}$/.test(v)) return U.donemLabel(v);
+    return String(v);
+  }
+  function para(v) { return typeof v === 'number' ? U.formatTRNumber(v, 2) : ''; }
+
+  /* q: yükleme kuyruğundaki fatura { pdf, inv, parsed, sablon, abId }
+     opts: { onKaydet(q), onSablon(sablon), abonelikSelect(seçili) → <select> } */
+  function ac(q, opts) {
+    st = { q: q, opts: opts, sablon: q.sablon ? clone(q.sablon) : yeniSablon(q), olcek: 1.25, degisti: false };
+    if (!q.sablon) st.yeni = true;
+    yenidenUygula();
+    var m = document.getElementById('modal');
+    m.innerHTML = '';
+    var box = UI.el('div', { class: 'modal-box fatura-pencere', role: 'dialog', 'aria-modal': 'true' });
+    box.innerHTML =
+      '<div class="modal-head"><h3>Fatura: ' + U.escapeHtml(q.name) + '</h3><button class="icon-btn modal-x" title="Kapat">&times;</button></div>' +
+      '<div class="fp-body"><div class="fp-sol"><div class="fp-araclar"><button class="btn xs" data-zoom="-">−</button><span class="fp-olcek"></span><button class="btn xs" data-zoom="+">+</button><label><input type="checkbox" class="fp-adlar" checked> Adları göster</label>' +
+      '<span class="fp-lejant"><i class="lj alan"></i>Fatura bilgisi <i class="lj kalem"></i>Bedel kalemi <i class="lj detay"></i>Ek bilgi <i class="lj tanimsiz"></i>Tanımlanmamış <i class="lj yoksay"></i>Yok sayılan</span></div>' +
+      '<div class="fp-gorunum"><div class="fp-sayfa"><canvas></canvas><div class="fp-katman"></div></div></div></div>' +
+      '<div class="fp-sag"></div></div>' +
+      '<div class="modal-foot"><span class="fp-durum"></span><button class="btn" data-act="kapat">Kapat</button><button class="btn" data-act="sablon">Şablonu kaydet</button>' +
+      '<button class="btn primary" data-act="aktar">Şablonu kaydet ve faturayı içe aktar</button></div>';
+    m.appendChild(box);
+    m.classList.add('open');
+    m.onclick = null;
+    box.querySelector('.modal-x').onclick = kapat;
+    box.querySelector('[data-act="kapat"]').onclick = kapat;
+    box.querySelector('[data-act="sablon"]').onclick = function () { sablonKaydet(); UI.toast('Şablon kaydedildi: ' + st.sablon.ad, 'ok'); ciz(); };
+    box.querySelector('[data-act="aktar"]').onclick = aktar;
+    box.querySelectorAll('[data-zoom]').forEach(function (b) {
+      b.onclick = function () { st.olcek = Math.max(0.6, Math.min(2.5, st.olcek + (b.dataset.zoom === '+' ? 0.15 : -0.15))); sayfaCiz(); };
+    });
+    st.box = box;
+    box.querySelector('.fp-adlar').onchange = function (e) { box.querySelector('.fp-katman').classList.toggle('etiketsiz', !e.target.checked); };
+    // Sağ paneldeki silme ve kategori değişiklikleri (bir kez bağlanır)
+    var sag = box.querySelector('.fp-sag');
+    sag.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sil]');
+      if (!b) return;
+      var t = st.sablon.tanimlar.filter(function (x) { return x.id === b.dataset.sil; })[0];
+      if (t) tanimSil(t);
+    });
+    sag.addEventListener('change', function (e) {
+      var s = e.target.closest('[data-kat]');
+      if (!s) return;
+      var t = st.sablon.tanimlar.filter(function (x) { return x.id === s.dataset.kat; })[0];
+      if (t) { t.kategori = s.value; S.eslestirmeSet(st.sablon.id, t.ad, null, true); degisti(); }
+    });
+    box.querySelector('.fp-gorunum').addEventListener('click', function (e) {
+      if (!e.target.closest('.fp-pop') && !e.target.closest('.fp-kutu')) { var p = box.querySelector('.fp-pop'); if (p) p.remove(); }
+    });
+    sayfaCiz();
+    ciz();
+  }
+
+  function kapat() {
+    var m = document.getElementById('modal');
+    m.classList.remove('open'); m.innerHTML = '';
+    if (st && st.degisti && st.opts.onKapat) st.opts.onKapat();
+    st = null;
+  }
+
+  function yeniSablon(q) {
+    var p = q.parsed && q.parsed.meta || {};
+    var ted = q.parsed && q.parsed.record.tedarikci;
+    return { id: 'sablon_' + Date.now().toString(36), ad: ted || 'Yeni şablon', anahtarlar: p.tedarikciVkn ? [p.tedarikciVkn] : (ted ? [ted] : []), tanimlar: [] };
+  }
+
+  function yenidenUygula() {
+    st.sonuc = SB.uygula(st.q.inv.items, st.q.inv.width, st.sablon, S.eslestirme());
+    st.calc = F.compute(st.sonuc.record);
+  }
+
+  // --- Sol: fatura görüntüsü ve değer kutuları
+  function sayfaCiz() {
+    var q = st.q, box = st.box;
+    box.querySelector('.fp-olcek').textContent = Math.round(st.olcek * 100) + ' %';
+    var canvas = box.querySelector('canvas');
+    if (!q.pdf) { canvas.style.display = 'none'; katmanCiz(); return; }
+    q.pdf.getPage(q.inv.pageFrom).then(function (page) {
+      var vp = page.getViewport({ scale: st.olcek });
+      var dpr = root.devicePixelRatio || 1;
+      canvas.width = vp.width * dpr; canvas.height = vp.height * dpr;
+      canvas.style.width = vp.width + 'px'; canvas.style.height = vp.height + 'px';
+      var ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return page.render({ canvasContext: ctx, viewport: vp }).promise;
+    }).then(katmanCiz).catch(function (e) { console.error(e); katmanCiz(); });
+  }
+
+  function katmanCiz() {
+    if (!st) return;
+    var kat = st.box.querySelector('.fp-katman'), s = st.olcek, son = st.sonuc;
+    kat.innerHTML = '';
+    var sayfa = st.box.querySelector('.fp-sayfa');
+    sayfa.style.width = (st.q.inv.width * s) + 'px';
+    sayfa.style.height = ((st.q.inv.height || 842) * s) + 'px';
+    var ogeTur = new Map(), etiketler = [];
+    son.bulunan.forEach(function (b) {
+      b.ogeler.forEach(function (o) { ogeTur.set(o, b); });
+      if (b.ogeler[0]) etiketler.push({ o: b.ogeler[0], ad: tanimAdi(b.tanim), tur: b.tanim.tur });
+    });
+    var tanimsiz = new Set(son.tanimsiz), yoksay = new Set(son.yoksayilan);
+    son.lines.forEach(function (l) {
+      l.degerler.forEach(function (o) {
+        var b = ogeTur.get(o);
+        var cls = b ? RENK[b.tanim.tur] : yoksay.has(l) ? 'yoksay' : tanimsiz.has(l) && SB.PARA_RE.test(String(o.str).trim()) ? 'tanimsiz' : 'serbest';
+        var d = UI.el('div', { class: 'fp-kutu ' + cls, title: (b ? tanimAdi(b.tanim) + ': ' : '') + String(o.str) });
+        d.style.left = (o.x * s - 1) + 'px';
+        d.style.top = ((o.y - o.h) * s - 1) + 'px';
+        d.style.width = (Math.max(o.w, 4) * s + 2) + 'px';
+        d.style.height = (o.h * s + 3) + 'px';
+        d.onclick = function (e) { e.stopPropagation(); popover(l, o, b, d); };
+        kat.appendChild(d);
+      });
+    });
+    etiketler.forEach(function (e) {
+      var t = UI.el('span', { class: 'fp-etiket ' + e.tur }, U.escapeHtml(e.ad));
+      t.style.left = (e.o.x * s) + 'px';
+      t.style.top = ((e.o.y - e.o.h) * s - 13) + 'px';
+      kat.appendChild(t);
+    });
+  }
+
+  function tanimAdi(t) {
+    if (t.tur === 'alan' || t.tur === 'kural' || t.tur === 'sabit') return (F.byKey[t.hedef] || {}).label || t.hedef;
+    return t.ad || t.etiketMetni || t.etiket;
+  }
+
+  // --- Değer kutusuna tıklayınca: tanımla / değiştir / kaldır
+  function popover(l, o, mevcut, kutu) {
+    var eski = st.box.querySelector('.fp-pop');
+    if (eski) eski.remove();
+    var tok = String(o.str).trim();
+    var sayilar = SB.sayiOgeleri(l), sayiSira = sayilar.indexOf(o);
+    var tarihSira = l.degerler.filter(function (x) { return /\d{1,2}\s*[.\-/]\s*\d{1,2}/.test(String(x.str)); }).indexOf(o);
+    var tip = sayiSira >= 0 && !/[.\-/]\d{2}[.\-/]/.test(tok) ? 'sayi' : (/\d{1,2}[.\-/ ]+\d{1,2}[.\-/ ]+\d{4}/.test(l.degerMetni) ? 'tarih' : 'metin');
+    var yoksayT = st.sablon.tanimlar.filter(function (t) { return t.tur === 'yoksay' && t.kolon === l.kolon && t.etiket === l.etiketNorm; })[0];
+    var kalemT = st.sablon.tanimlar.filter(function (t) { return t.tur === 'kalem' && t.kolon === l.kolon && t.etiket === l.etiketNorm; })[0];
+    var mt = mevcut ? mevcut.tanim : (kalemT || yoksayT || null);
+    var varsayilanTur = mt ? mt.tur : (SB.PARA_RE.test(tok) ? 'kalem' : 'alan');
+
+    var pop = UI.el('div', { class: 'fp-pop' });
+    var alanOpts = ALAN_SECENEKLERI.map(function (k) { return '<option value="' + k + '"' + (mt && mt.hedef === k ? ' selected' : '') + '>' + U.escapeHtml(F.byKey[k].label) + '</option>'; }).join('');
+    var katOpts = K.KATEGORILER.map(function (k) { return '<option value="' + k.id + '"' + ((mt && mt.kategori === k.id) || (!mt && k.id === (K.varsayilan(l.etiket, st.sablon.id) || 'diger')) ? ' selected' : '') + '>' + U.escapeHtml(k.label) + '</option>'; }).join('');
+    pop.innerHTML =
+      '<div class="fp-pop-head"><b>' + U.escapeHtml(l.etiket || '(etiketsiz satır)') + '</b><button class="icon-btn" data-x>&times;</button></div>' +
+      '<div class="fp-pop-satir">Seçilen değer: <code>' + U.escapeHtml(tok) + '</code> · satırdaki değerler: ' + l.degerler.map(function (x) { return '<code' + (x === o ? ' class="sec"' : '') + '>' + U.escapeHtml(String(x.str).trim()) + '</code>'; }).join(' ') + '</div>' +
+      '<div class="fp-turler">' + [['alan', 'Fatura bilgisi'], ['kalem', 'Bedel kalemi'], ['detay', 'Ek bilgi'], ['yoksay', 'Yok say']].map(function (t) {
+        return '<label><input type="radio" name="fptur" value="' + t[0] + '"' + (varsayilanTur === t[0] ? ' checked' : '') + '> ' + t[1] + '</label>';
+      }).join('') + '</div>' +
+      '<div class="fp-tur-alan"><label>Alan <select data-f="hedef">' + alanOpts + '</select></label><p class="help fp-anlam"></p></div>' +
+      '<div class="fp-tur-kalem"><label>Kalem adı <input data-f="kalemAd" value="' + U.escapeHtml(mt && mt.tur === 'kalem' ? mt.ad : l.etiket) + '"></label>' +
+      '<label>Kategori <select data-f="kategori">' + katOpts + '</select></label>' +
+      '<label>Miktar birimi <select data-f="miktarBirimi">' + ['kWh', 'MWh', 'kW', 'kVArh'].map(function (b) { return '<option' + (mt && mt.miktarBirimi === b ? ' selected' : '') + '>' + b + '</option>'; }).join('') + '</select></label>' +
+      '<p class="help">Bu etiketi taşıyan her satır kalem olarak alınır: 3 değer varsa miktar, birim fiyat, tutar; tek değer varsa tutar.</p></div>' +
+      '<div class="fp-tur-detay"><label>Bilgi adı <input data-f="detayAd" value="' + U.escapeHtml(mt && mt.tur === 'detay' ? mt.ad : l.etiket) + '"></label></div>' +
+      '<div class="fp-tur-deger"><label>Değer türü <select data-f="deger">' + [['sayi', 'Sayı'], ['tarih', 'Tarih'], ['donem', 'Dönem (AA-YYYY)'], ['metin', 'Metin']].map(function (d) {
+        return '<option value="' + d[0] + '"' + ((mt && mt.deger === d[0]) || (!mt && d[0] === tip) ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label>Sayı biçimi <select data-f="sayiBicimi"><option value="tr"' + ((mt && mt.sayiBicimi === 'tr') || (!mt && SB.bicimTahmin(tok, l) === 'tr') ? ' selected' : '') + '>1.234,56</option><option value="nokta"' + ((mt && mt.sayiBicimi === 'nokta') || (!mt && SB.bicimTahmin(tok, l) === 'nokta') ? ' selected' : '') + '>1234.56</option></select></label>' +
+      '<p class="fp-onizleme"></p></div>' +
+      '<div class="fp-pop-foot">' + (mt ? '<button class="btn sm danger" data-sil>Tanımı kaldır</button>' : '') + '<button class="btn sm primary" data-ok>' + (mt ? 'Güncelle' : 'Tanımla') + '</button></div>';
+    st.box.querySelector('.fp-gorunum').appendChild(pop);
+    var r = kutu.getBoundingClientRect(), g = st.box.querySelector('.fp-gorunum').getBoundingClientRect();
+    var gv = st.box.querySelector('.fp-gorunum');
+    pop.style.left = Math.min(r.left - g.left + gv.scrollLeft, gv.scrollWidth - 360) + 'px';
+    pop.style.top = (r.bottom - g.top + gv.scrollTop + 6) + 'px';
+
+    function tur() { return pop.querySelector('input[name=fptur]:checked').value; }
+    function sec() {
+      var t = tur();
+      var hedef = pop.querySelector('[data-f=hedef]').value;
+      if (t === 'alan' && !mt && VARSAYILAN_TUR[hedef] && pop.dataset.hedefDegisti) pop.querySelector('[data-f=deger]').value = VARSAYILAN_TUR[hedef];
+      var deger = pop.querySelector('[data-f=deger]').value;
+      return {
+        tur: t, hedef: hedef, ad: t === 'kalem' ? pop.querySelector('[data-f=kalemAd]').value.trim() : pop.querySelector('[data-f=detayAd]').value.trim(),
+        kategori: pop.querySelector('[data-f=kategori]').value, miktarBirimi: pop.querySelector('[data-f=miktarBirimi]').value,
+        deger: deger, sayiBicimi: pop.querySelector('[data-f=sayiBicimi]').value,
+        sira: deger === 'sayi' ? Math.max(0, sayiSira) : deger === 'tarih' ? Math.max(0, tarihSira) : deger === 'donem' ? 0 : (l.degerler.length > 1 ? l.degerler.indexOf(o) : null)
+      };
+    }
+    function guncelle() {
+      var t = tur();
+      ['alan', 'kalem', 'detay'].forEach(function (x) { pop.querySelector('.fp-tur-' + x).style.display = t === x ? '' : 'none'; });
+      pop.querySelector('.fp-tur-deger').style.display = t === 'alan' || t === 'detay' ? '' : 'none';
+      var h = pop.querySelector('[data-f=hedef]').value;
+      pop.querySelector('.fp-anlam').textContent = F.ACIKLAMA[h] || '';
+      var s = sec();
+      if (t === 'alan' || t === 'detay') {
+        var v = SB.degerOku(l, { deger: s.deger, sira: s.sira, sayiBicimi: s.sayiBicimi });
+        pop.querySelector('.fp-onizleme').innerHTML = 'Okunacak değer: <b>' + U.escapeHtml(v ? fmtDeger(s.hedef, v.deger) : '— okunamadı —') + '</b>';
+      }
+    }
+    pop.addEventListener('change', function (e) { if (e.target.dataset.f === 'hedef') pop.dataset.hedefDegisti = '1'; guncelle(); });
+    guncelle();
+    pop.querySelector('[data-x]').onclick = function () { pop.remove(); };
+    if (mt) pop.querySelector('[data-sil]').onclick = function () { tanimSil(mt); pop.remove(); };
+    pop.querySelector('[data-ok]').onclick = function () {
+      var s = sec();
+      if (s.tur === 'kalem' && !s.ad) { UI.toast('Kalem adı girin.', 'err'); return; }
+      if (s.tur === 'detay' && !s.ad) { UI.toast('Bilgi adı girin.', 'err'); return; }
+      if (mt) tanimSil(mt, true);
+      if (s.tur === 'alan') st.sablon.tanimlar = st.sablon.tanimlar.filter(function (t) { return !((t.tur === 'alan' || t.tur === 'kural' || t.tur === 'sabit') && t.hedef === s.hedef); });
+      st.sablon.tanimlar.push(SB.tanimOlustur(l, s));
+      if (s.tur === 'kalem') S.eslestirmeSet(st.sablon.id, s.ad, null, true); // şablondaki kategori geçerli olsun
+      pop.remove();
+      degisti();
+    };
+  }
+
+  function tanimSil(t, sessiz) {
+    st.sablon.tanimlar = st.sablon.tanimlar.filter(function (x) { return x !== t && x.id !== t.id; });
+    if (!sessiz) degisti();
+  }
+  function degisti() { st.degisti = true; yenidenUygula(); katmanCiz(); ciz(); }
+
+  // --- Sağ panel
+  function ciz() {
+    if (!st) return;
+    var sag = st.box.querySelector('.fp-sag'), son = st.sonuc, r = son.record, sb = st.sablon;
+    sag.innerHTML = '';
+
+    var bas = UI.el('div', { class: 'fp-blok' });
+    bas.innerHTML = '<div class="fp-sablon"><label>Şablon adı <input data-s="ad" value="' + U.escapeHtml(sb.ad) + '"></label>' +
+      '<label>Tanıma metinleri <input data-s="anahtar" value="' + U.escapeHtml((sb.anahtarlar || []).join(', ')) + '" title="Faturada bu metinlerin hepsi geçiyorsa bu şablon kullanılır (ör. tedarikçi VKN)"></label></div>' +
+      '<p class="muted small">' + (st.yeni ? 'Bu fatura biçimi için kayıtlı şablon yok. "Otomatik tanımla" ile başlayın veya faturadaki değerlere tıklayarak tanımlayın.' :
+        'Kayıtlı şablon uygulandı. Değerlere tıklayarak tanımları düzenleyebilirsiniz.') + '</p>';
+    var ot = UI.el('button', { class: 'btn primary sm' }, '✨ Otomatik tanımla');
+    ot.onclick = otomatik;
+    bas.appendChild(ot);
+    bas.addEventListener('change', function (e) {
+      var k = e.target.dataset.s;
+      if (k === 'ad') sb.ad = e.target.value.trim() || sb.ad;
+      if (k === 'anahtar') sb.anahtarlar = e.target.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      st.degisti = true;
+    });
+    sag.appendChild(bas);
+
+    // Abonelik
+    var ab = UI.el('div', { class: 'fp-blok fp-ab' }, '<h4>Abonelik</h4>');
+    var sel = st.opts.abonelikSelect(st.q.abId);
+    sel.onchange = function () { st.q.abId = sel.value || null; };
+    ab.appendChild(sel);
+    sag.appendChild(ab);
+
+    // Fatura bilgileri
+    var alanlar = UI.el('div', { class: 'fp-blok' }, '<h4>Fatura bilgileri</h4>');
+    var rows = ALAN_SECENEKLERI.map(function (k) {
+      var t = sb.tanimlar.filter(function (x) { return (x.tur === 'alan' || x.tur === 'kural' || x.tur === 'sabit') && x.hedef === k; })[0];
+      var deger = r[k];
+      var zor = ZORUNLU.indexOf(k) >= 0;
+      if (!t && !deger && !zor) return '';
+      var kaynak = !t ? (deger ? 'hesaplandı' : '') : t.tur === 'kural' ? 'hesaplanır' : t.tur === 'sabit' ? 'sabit' : '“' + (t.etiketMetni || t.etiket) + '”';
+      var eksik = t && t.tur === 'alan' && son.eksik.indexOf(t) >= 0;
+      return '<tr class="' + (!deger ? (zor ? 'zorunlu-eksik' : 'eksik') : '') + '"><td><b>' + U.escapeHtml(F.byKey[k].label) + '</b><small>' + U.escapeHtml(F.ACIKLAMA[k] || '') + '</small></td>' +
+        '<td class="num">' + (deger !== undefined && deger !== null && deger !== '' ? U.escapeHtml(fmtDeger(k, deger)) : (eksik ? '<i>faturada bulunamadı</i>' : '<i>tanımlanmadı</i>')) + '</td>' +
+        '<td class="muted small">' + U.escapeHtml(kaynak) + '</td>' +
+        '<td>' + (t ? '<button class="btn xs" data-sil="' + t.id + '" title="Tanımı kaldır">✕</button>' : '') + '</td></tr>';
+    }).join('');
+    alanlar.appendChild(UI.el('table', { class: 'table fp-tablo' }, '<tbody>' + rows + '</tbody>'));
+    alanlar.appendChild(UI.el('p', { class: 'help' }, 'Eksik bir bilgiyi tanımlamak için faturadaki değerine tıklayın.'));
+    sag.appendChild(alanlar);
+
+    // Kalemler
+    var kal = UI.el('div', { class: 'fp-blok' }, '<h4>Bedel kalemleri</h4>');
+    var kalemTanimlari = sb.tanimlar.filter(function (t) { return t.tur === 'kalem'; });
+    var krows = son.bulunan.filter(function (b) { return b.tanim.tur === 'kalem'; }).map(function (b) {
+      var k = b.kalem;
+      return '<tr><td>' + U.escapeHtml(k.ad) + (k.ad !== b.satir.etiket ? '<small>faturada: ' + U.escapeHtml(b.satir.etiket) + '</small>' : '') + '</td>' +
+        '<td><select data-kat="' + b.tanim.id + '">' + K.KATEGORILER.map(function (c) { return '<option value="' + c.id + '"' + (c.id === k.kategori ? ' selected' : '') + '>' + U.escapeHtml(c.label) + '</option>'; }).join('') + '</select></td>' +
+        '<td class="num">' + (typeof k.miktar === 'number' ? U.formatTRNumber(k.miktar, 3) + ' ' + (k.miktarBirimi || '') : '') + '</td>' +
+        '<td class="num">' + para(k.tutar) + '</td><td><button class="btn xs" data-sil="' + b.tanim.id + '" title="Tanımı kaldır">✕</button></td></tr>';
+    }).join('');
+    var bulunmayan = kalemTanimlari.filter(function (t) { return !son.bulunan.some(function (b) { return b.tanim === t; }); });
+    kal.appendChild(UI.el('table', { class: 'table fp-tablo' }, '<thead><tr><th>Kalem</th><th>Kategori</th><th class="num">Miktar</th><th class="num">Tutar (TL)</th><th></th></tr></thead><tbody>' +
+      (krows || '<tr><td colspan="5" class="muted">Kalem yok.</td></tr>') + '</tbody>'));
+    if (bulunmayan.length) kal.appendChild(UI.el('p', { class: 'muted small' }, 'Bu faturada geçmeyen şablon kalemleri: ' + bulunmayan.map(function (t) { return U.escapeHtml(t.ad); }).join(', ')));
+    sag.appendChild(kal);
+
+    // Ek bilgiler
+    var detaylar = son.bulunan.filter(function (b) { return b.tanim.tur === 'detay'; });
+    if (detaylar.length) {
+      var det = UI.el('div', { class: 'fp-blok' }, '<h4>Ek bilgiler</h4>');
+      det.appendChild(UI.el('table', { class: 'table fp-tablo' }, '<tbody>' + detaylar.map(function (b) {
+        return '<tr><td>' + U.escapeHtml(b.tanim.ad) + '</td><td class="num">' + U.escapeHtml(fmtDeger(null, b.deger)) + '</td><td><button class="btn xs" data-sil="' + b.tanim.id + '">✕</button></td></tr>';
+      }).join('') + '</tbody>'));
+      sag.appendChild(det);
+    }
+
+    // Tanımlanmamış satırlar
+    if (son.tanimsiz.length) {
+      var tz = UI.el('div', { class: 'fp-blok fp-tanimsiz' }, '<h4>Tanımlanmamış satırlar (' + son.tanimsiz.length + ')</h4><p class="help">Bu satırlar içeri aktarılmayacak. Bedel kalemiyse kategorisini seçip ekleyin, gereksizse yok sayın.</p>');
+      son.tanimsiz.forEach(function (l) {
+        var row = UI.el('div', { class: 'tz-satir' });
+        row.innerHTML = '<div><b>' + U.escapeHtml(l.etiket || '(etiketsiz)') + '</b> <span class="muted">' + U.escapeHtml(l.degerMetni) + '</span></div>';
+        var ks = UI.el('select', null, K.KATEGORILER.map(function (c) { return '<option value="' + c.id + '"' + (c.id === (K.varsayilan(l.etiket, sb.id) || 'diger') ? ' selected' : '') + '>' + U.escapeHtml(c.label) + '</option>'; }).join(''));
+        var ek = UI.el('button', { class: 'btn xs primary' }, 'Kalem olarak ekle');
+        ek.onclick = function () {
+          sb.tanimlar.push(SB.tanimOlustur(l, { tur: 'kalem', ad: l.etiket, kategori: ks.value, miktarBirimi: 'kWh' }));
+          S.eslestirmeSet(sb.id, l.etiket, null, true);
+          degisti();
+        };
+        var ys = UI.el('button', { class: 'btn xs' }, 'Yok say');
+        ys.onclick = function () { sb.tanimlar.push(SB.tanimOlustur(l, { tur: 'yoksay' })); degisti(); };
+        var araclar = UI.el('div', { class: 'tz-arac' });
+        araclar.appendChild(ks); araclar.appendChild(ek); araclar.appendChild(ys);
+        row.appendChild(araclar);
+        tz.appendChild(row);
+      });
+      sag.appendChild(tz);
+    }
+    if (son.yoksayilan.length) {
+      var yd = UI.el('details', { class: 'fp-blok' });
+      yd.appendChild(UI.el('summary', null, 'Yok sayılan satırlar (' + son.yoksayilan.length + ')'));
+      son.yoksayilan.forEach(function (l) {
+        var t = sb.tanimlar.filter(function (x) { return x.tur === 'yoksay' && x.kolon === l.kolon && x.etiket === l.etiketNorm; })[0];
+        var row = UI.el('div', { class: 'tz-satir' }, '<div>' + U.escapeHtml(l.etiket) + ' <span class="muted">' + U.escapeHtml(l.degerMetni) + '</span></div>');
+        if (t) { var g = UI.el('button', { class: 'btn xs' }, 'Geri al'); g.onclick = function () { tanimSil(t); }; row.appendChild(g); }
+        yd.appendChild(row);
+      });
+      sag.appendChild(yd);
+    }
+
+    // Özet ve kontroller
+    var oz = UI.el('div', { class: 'fp-blok' }, '<h4>İçe aktarılacak özet</h4>');
+    var ozetAlanlari = ['enerjiBedeli', 'dagitimBedeli', 'digerBedeller', 'mahsupKwh', 'mahsupTL', 'btv', 'kdv', 'faturaTutari'];
+    oz.appendChild(UI.el('table', { class: 'table fp-tablo' }, '<tbody>' + ozetAlanlari.map(function (k) {
+      var f = F.byKey[k];
+      return '<tr><td>' + U.escapeHtml(f.label) + '</td><td class="num">' + (r[k] === null || r[k] === undefined ? '' : U.formatTRNumber(r[k], f.dec === undefined ? 2 : f.dec)) + ' <span class="muted">' + (f.unit || '') + '</span></td></tr>';
+    }).join('') + '</tbody>'));
+    var kontroller = F.FIELDS.filter(function (f) { return f.check; }).map(function (f) {
+      var v = st.calc[f.key], s = F.checkStatus(f, v, r);
+      return '<span class="chk ' + (s || 'na') + '" title="' + (v === null || v === undefined ? 'hesaplanamadı' : U.formatTRNumber(v, 2)) + '">' + (s === 'ok' ? '✓' : s === 'err' ? '✗' : '–') + ' ' + U.escapeHtml(f.label.replace('Kontrol: ', '')) + '</span>';
+    }).join('');
+    oz.appendChild(UI.el('div', { class: 'checks' }, kontroller));
+    sag.appendChild(oz);
+
+    // Alt durum satırı
+    var hatalar = F.FIELDS.filter(function (f) { return f.check && F.checkStatus(f, st.calc[f.key], r) === 'err'; }).length;
+    var eksikZ = ZORUNLU.filter(function (k) { return r[k] === undefined || r[k] === null || r[k] === ''; });
+    var durum = [];
+    if (eksikZ.length) durum.push('<span class="err-text">Eksik: ' + eksikZ.map(function (k) { return F.byKey[k].label; }).join(', ') + '</span>');
+    if (son.tanimsiz.length) durum.push('<span class="warn-text">' + son.tanimsiz.length + ' tanımlanmamış satır</span>');
+    if (hatalar) durum.push('<span class="err-text">' + hatalar + ' kontrol tutmuyor</span>');
+    if (!durum.length) durum.push('<span class="ok-text">✓ Tüm zorunlu bilgiler tanımlı, kontroller tutuyor</span>');
+    st.box.querySelector('.fp-durum').innerHTML = durum.join(' · ');
+  }
+
+  function otomatik() {
+    var q = st.q;
+    if (!q.parsed) { UI.toast('Bu fatura için otomatik tanımlama yapılamadı.', 'err'); return; }
+    var oneri = SB.otomatikTanimla(q.inv.items, q.inv.width, q.parsed, { id: st.sablon.id, ad: st.sablon.ad, userMap: S.eslestirme() });
+    var n = SB.birlestir(st.sablon, oneri);
+    if (!st.sablon.anahtarlar.length) st.sablon.anahtarlar = oneri.anahtarlar;
+    degisti();
+    UI.toast(n ? n + ' tanım eklendi. Faturada işaretli değerleri kontrol edin.' : 'Eklenecek yeni tanım bulunamadı.', n ? 'ok' : '');
+  }
+
+  function sablonKaydet() {
+    if (!st.sablon.anahtarlar.length) { UI.toast('Şablonun tanınması için en az bir tanıma metni girin (ör. tedarikçi VKN).', 'err'); return false; }
+    var kayitli = S.sablonSave(clone(st.sablon));
+    st.q.sablon = kayitli;
+    st.yeni = false;
+    st.degisti = false;
+    if (st.opts.onSablon) st.opts.onSablon(kayitli);
+    return true;
+  }
+
+  function aktar() {
+    var r = st.sonuc.record;
+    var eksikZ = ZORUNLU.filter(function (k) { return r[k] === undefined || r[k] === null || r[k] === ''; });
+    if (eksikZ.length) { UI.toast('Önce eksik bilgileri tanımlayın: ' + eksikZ.map(function (k) { return F.byKey[k].label; }).join(', '), 'err'); return; }
+    if (!st.q.abId) { UI.toast('Faturanın kaydedileceği aboneliği seçin.', 'err'); return; }
+    var hatalar = F.FIELDS.filter(function (f) { return f.check && F.checkStatus(f, st.calc[f.key], r) === 'err'; });
+    if (hatalar.length && !confirm('Şu kontroller tutmuyor: ' + hatalar.map(function (f) { return f.label.replace('Kontrol: ', ''); }).join(', ') + '.\nYine de içe aktarılsın mı?')) return;
+    if (st.sonuc.tanimsiz.length && !confirm(st.sonuc.tanimsiz.length + ' tanımlanmamış satır içeri aktarılmayacak. Devam edilsin mi?')) return;
+    if (!sablonKaydet()) return;
+    var q = st.q;
+    q.sonuc = SB.uygula(q.inv.items, q.inv.width, q.sablon, S.eslestirme());
+    q.record = q.sonuc.record;
+    var ok = st.opts.onKaydet(q);
+    if (ok !== false) kapat();
+  }
+
+  App.faturaPencere = { ac: ac };
+})(this);
+
+</script>
   <script>/* js/page-tesisler.js */
 /* Tesisler modülü: Tüketim Tesisi → Abonelikler (EIC, abone grubu, faturalar) + Üretim Tesisleri. */
 (function (root) {
@@ -2476,50 +3365,49 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 </script>
   <script>/* js/page-yukle.js */
-/* Fatura Yükle modülü: PDF e-faturaları okur, önizletir, kontrol eder ve ilgili aboneliğe kaydeder.
-   Eşleştirme faturadaki EIC / sözleşme no / tesisat no ile aboneliğe yapılır. */
+/* Fatura Yükle: PDF faturaları okur, kayıtlı şablonla tanır ve yalnız şablonda tanımlı değerleri içeri aktarır.
+   Şablonu olmayan veya tanımlanmamış satırı bulunan faturalar fatura penceresinde açılıp tanımlanır (bkz. fatura-pencere.js).
+   Abonelik eşleştirmesi faturadaki EIC / sözleşme no / tesisat no ile yapılır. */
 (function (root) {
   'use strict';
-  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser, K = App.kalemler;
+  var App = root.App, U = App.util, S = App.store, UI = App.ui, F = App.fields, P = App.faturaParser, SB = App.sablon;
 
-  var queue = []; // {id, file, name, status, result, record, abId, error}
+  // Kuyruk öğesi: { id, file, name, pdf, inv, parsed, sablon, sonuc, record, abId, status }
+  // status: okunuyor | hazir | sablonsuz | kaydedildi | atlandi | hata
+  var queue = [];
   var hedef = 'auto';
   var containerRef = null;
+  var ZORUNLU = ['donem', 'faturaNo', 'aktifKwh', 'faturaTutari'];
 
   function render(container, params) {
     containerRef = container;
     if (params && params.ab) hedef = params.ab;
     container.innerHTML = '';
     var page = UI.el('div', { class: 'yukle-page' });
-
-    var head = UI.el('div', { class: 'panel-head' }, '<div><h2>Fatura Yükle</h2><span class="muted">PDF e-fatura dosyalarını sürükleyin; değerler okunur, kontrol edilir ve onayınızla kaydedilir.</span></div>');
-    page.appendChild(head);
+    page.appendChild(UI.el('div', { class: 'panel-head' }, '<div><h2>Fatura Yükle</h2><span class="muted">Faturalar kayıtlı şablonla okunur; yalnız tanımlı değerler içeri aktarılır. ' +
+      'Şablonu olmayan faturayı açıp “Otomatik tanımla” ile tanımlayın, gerekirse değerlere tıklayarak düzeltin.</span></div>'));
 
     var bar = UI.el('div', { class: 'toolbar' });
     var sel = abonelikSelect(hedef, 'Otomatik eşleştir (EIC / Sözleşme No)', 'auto');
-    sel.id = 'hedefTesis';
     sel.onchange = function () {
       hedef = sel.value;
-      queue.forEach(function (q) { if (q.status === 'hazir') q.abId = resolveAbonelik(q.record); });
+      queue.forEach(function (q) { if (q.status === 'hazir' || q.status === 'sablonsuz') q.abId = resolveAbonelik(q); });
       renderQueue();
     };
     bar.appendChild(UI.el('label', { class: 'inline' }, 'Hedef abonelik:'));
     bar.appendChild(sel);
     if (queue.length) {
-      bar.appendChild(UI.el('button', { class: 'btn primary sm', onclick: saveAll }, 'Hazır olanların tümünü kaydet'));
-      bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () {
-        var extra = [];
-        queue.forEach(function (q) { if (q.record) (q.record.kalemler || []).forEach(function (k) { extra.push({ bicim: q.record.bicim, ad: k.ad, tutar: k.tutar }); }); });
-        App.kalemUI.openEslestirme(extra);
-      } }, 'Kalem Eşleştirme'));
+      bar.appendChild(UI.el('button', { class: 'btn primary sm', onclick: saveAll, title: 'Şablonu olan, zorunlu bilgileri tam ve kontrolleri tutan faturaları kaydeder' }, 'Sorunsuz olanların tümünü kaydet'));
       bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { queue = []; render(container); } }, 'Listeyi temizle'));
     }
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: sablonlarPenceresi }, 'Şablonlar (' + S.sablonList().length + ')'));
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { App.kalemUI.openEslestirme(); } }, 'Kalem Eşleştirme'));
     page.appendChild(bar);
 
     var drop = UI.el('label', { class: 'dropzone' },
       '<input type="file" accept="application/pdf,.pdf" multiple hidden>' +
       '<div class="dz-icon">⬆</div><div><strong>PDF faturaları buraya bırakın</strong> veya tıklayıp seçin</div>' +
-      '<div class="muted">Birden fazla dosya seçebilirsiniz. Dosyalar bilgisayarınızdan dışarı gönderilmez; okuma tarayıcıda yapılır.</div>');
+      '<div class="muted">Birden fazla dosya ve çok faturalı PDF olabilir. Dosyalar bilgisayarınızdan dışarı gönderilmez.</div>');
     var input = drop.querySelector('input');
     input.onchange = function () { addFiles(input.files); input.value = ''; };
     ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
@@ -2532,9 +3420,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     renderQueue();
   }
 
-  function resolveAbonelik(rec) {
+  function resolveAbonelik(q) {
     if (hedef !== 'auto' && S.abonelikGet(hedef)) return hedef;
-    var m = S.abonelikMatch(rec || {});
+    var r = q.record || (q.parsed && q.parsed.record) || {};
+    var m = S.abonelikMatch(r) || (q.parsed ? S.abonelikMatch(q.parsed.record) : null);
     return m ? m.id : null;
   }
 
@@ -2562,22 +3451,33 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     return (t ? t.ad + ' › ' : '') + a.ad;
   }
 
+  // Kayıtlı şablonu bulup uygular
+  function sablonUygula(q) {
+    q.sablon = SB.bul(q.inv.items, S.sablonList());
+    if (!q.sablon) { q.status = 'sablonsuz'; q.sonuc = null; q.record = null; }
+    else {
+      q.sonuc = SB.uygula(q.inv.items, q.inv.width, q.sablon, S.eslestirme());
+      q.record = q.sonuc.record;
+      q.status = 'hazir';
+    }
+    if (!q.abId) q.abId = resolveAbonelik(q);
+  }
+
   function addFiles(files) {
     Array.prototype.forEach.call(files, function (file) {
       if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { UI.toast(file.name + ': PDF değil, atlandı.', 'err'); return; }
       var q = { id: U.uid('q'), file: file, name: file.name, status: 'okunuyor' };
       queue.push(q);
-      readPdf(file).then(function (list) {
+      readPdf(file).then(function (res) {
         // Bir PDF birden çok fatura içerebilir: her fatura için ayrı kart
-        var items = list.map(function (inv) {
-          return {
-            id: U.uid('q'), file: file, status: 'hazir', result: inv.res, record: inv.res.record,
-            name: file.name + (list.length > 1 ? ' · s.' + inv.pageFrom + (inv.pageTo > inv.pageFrom ? '–' + inv.pageTo : '') : ''),
-            abId: resolveAbonelik(inv.res.record)
-          };
+        var items = res.invoices.map(function (inv) {
+          var x = { id: U.uid('q'), file: file, pdf: res.pdf, inv: inv, parsed: inv.parsed,
+            name: file.name + (res.invoices.length > 1 ? ' · s.' + inv.pageFrom + (inv.pageTo > inv.pageFrom ? '–' + inv.pageTo : '') : '') };
+          sablonUygula(x);
+          return x;
         });
         queue.splice.apply(queue, [queue.indexOf(q), 1].concat(items));
-        if (list.length > 1) UI.toast(file.name + ': ' + list.length + ' fatura bulundu.', 'ok');
+        if (res.invoices.length > 1) UI.toast(file.name + ': ' + res.invoices.length + ' fatura bulundu.', 'ok');
       }).catch(function (err) {
         console.error(err);
         q.status = 'hata';
@@ -2589,14 +3489,30 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   function readPdf(file) {
     if (!root.pdfjsLib) return Promise.reject(new Error('PDF okuyucu (pdf.js) yüklenemedi.'));
+    var pdf;
     return file.arrayBuffer().then(function (buf) {
       return root.pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
-    }).then(P.extractItems).then(function (pages) {
+    }).then(function (doc) { pdf = doc; return P.extractItems(doc); }).then(function (pages) {
       if (!pages.length || !pages.some(function (p) { return p.items.length; })) throw new Error('PDF içinde metin bulunamadı (taranmış görüntü olabilir).');
-      return P.splitInvoices(pages).map(function (inv) {
-        return { pageFrom: inv.pageFrom, pageTo: inv.pageTo, res: P.parse(inv.items, inv.width) };
+      var invoices = P.splitInvoices(pages).map(function (inv) {
+        // Yerleşik okuyucu yalnız "Otomatik tanımla" önerisi için kullanılır
+        try { inv.parsed = P.parse(inv.items, inv.width); } catch (e) { inv.parsed = null; }
+        return inv;
       });
+      return { pdf: pdf, invoices: invoices };
     });
+  }
+
+  function sorunlar(q) {
+    var out = [];
+    if (!q.record) return out;
+    var eksik = ZORUNLU.filter(function (k) { var v = q.record[k]; return v === undefined || v === null || v === ''; });
+    if (eksik.length) out.push({ tur: 'err', metin: 'Eksik: ' + eksik.map(function (k) { return F.byKey[k].label; }).join(', ') });
+    if (q.sonuc && q.sonuc.tanimsiz.length) out.push({ tur: 'warn', metin: q.sonuc.tanimsiz.length + ' tanımlanmamış satır: ' + q.sonuc.tanimsiz.map(function (l) { return l.etiket || l.degerMetni; }).join(', ') });
+    var calc = F.compute(q.record);
+    var hata = F.FIELDS.filter(function (f) { return f.check && F.checkStatus(f, calc[f.key], q.record) === 'err'; });
+    if (hata.length) out.push({ tur: 'err', metin: 'Kontrol tutmuyor: ' + hata.map(function (f) { return f.label.replace('Kontrol: ', ''); }).join(', ') });
+    return out;
   }
 
   function renderQueue() {
@@ -2615,112 +3531,61 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       var ab = S.abonelikGet(q.abId) || {};
       c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge ok">Kaydedildi</span></div><p>' +
         U.escapeHtml(abonelikAdi(q.abId)) + ' · ' + U.donemLabel(q.record.donem) +
-        ' · <a href="#/veriler?tt=' + ab.tuketimTesisId + '&ab=' + q.abId + '">Veriler sayfasında aç →</a></p>';
+        ' · <a href="#/veriler?tt=' + ab.tuketimTesisId + '&ab=' + q.abId + '&sayfa=faturalar">Veriler sayfasında aç →</a></p>';
       return c;
     }
     if (q.status === 'atlandi') { c.innerHTML = '<div class="fcard-head">' + title + '<span class="badge">Atlandı</span></div>'; return c; }
 
-    var r = q.record, res = q.result, calc = F.compute(r);
-    var checks = F.FIELDS.filter(function (f) { return f.check; }).map(function (f) {
-      var st = F.checkStatus(f, calc[f.key], r);
-      return '<span class="chk ' + (st || 'na') + '" title="' + U.escapeHtml(f.label) + ': ' + (calc[f.key] === null ? 'hesaplanamadı' : U.formatTRNumber(calc[f.key], 3)) + '">' +
-        (st === 'ok' ? '✓' : st === 'err' ? '✗' : '–') + ' ' + U.escapeHtml(f.label.replace('Kontrol: ', '')) + '</span>';
-    }).join('');
-
+    var r = q.record;
     var head = UI.el('div', { class: 'fcard-head' }, title +
-      '<span class="badge">' + U.escapeHtml(U.donemLabel(r.donem)) + '</span>' +
-      '<span class="badge">' + res.found + ' alan okundu</span>' +
-      '<span class="muted">' + U.escapeHtml(r.tedarikci || '') + ' · ' + U.escapeHtml(r.faturaNo || '') + '</span>');
+      (q.sablon ? '<span class="badge">Şablon: ' + U.escapeHtml(q.sablon.ad) + '</span>' : '<span class="badge warn">Şablon yok</span>') +
+      (r ? '<span class="badge">' + U.escapeHtml(U.donemLabel(r.donem)) + '</span><span class="muted">' + U.escapeHtml(r.faturaNo || '') + '</span>' : ''));
     c.appendChild(head);
 
-    // Abonelik eşleştirme
+    if (!r) {
+      c.appendChild(UI.el('p', { class: 'muted' }, 'Bu fatura biçimi için kayıtlı şablon yok. Faturayı açıp “Otomatik tanımla” ile tanımlayın; kaydettiğiniz şablon aynı biçimdeki diğer faturalara da uygulanır.'));
+    } else {
+      c.appendChild(UI.el('div', { class: 'fcard-ozet' },
+        [['Çekilen', r.aktifKwh, 'kWh', 0], ['Enerji', r.enerjiBedeli, 'TL'], ['Dağıtım', r.dagitimBedeli, 'TL'], ['GES mahsubu', r.mahsupTL, 'TL'], ['Fatura tutarı', r.faturaTutari, 'TL']]
+          .map(function (x) { return '<span><i>' + x[0] + '</i> ' + (typeof x[1] === 'number' ? U.formatTRNumber(x[1], x[3] === undefined ? 2 : x[3]) + ' ' + x[2] : '—') + '</span>'; }).join('')));
+      var sr = sorunlar(q);
+      c.appendChild(UI.el('ul', { class: 'notes' }, sr.length ? sr.map(function (s) { return '<li class="' + s.tur + '">' + U.escapeHtml(s.metin) + '</li>'; }).join('') : '<li class="ok">✓ Zorunlu bilgiler tam, kontroller tutuyor.</li>'));
+    }
+
     var match = UI.el('div', { class: 'match' });
     var sel = abonelikSelect(q.abId, '— Abonelik seçin —', '');
     sel.onchange = function () { q.abId = sel.value || null; renderQueue(); };
-    match.appendChild(UI.el('span', null, 'Kaydedilecek abonelik:'));
+    match.appendChild(UI.el('span', null, 'Abonelik:'));
     match.appendChild(sel);
     match.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { createAbonelikFrom(q); } }, 'Faturadan yeni abonelik oluştur'));
     c.appendChild(match);
 
-    var dup = q.abId ? S.faturaFindDuplicate(q.abId, r) : null;
-    var info = [];
-    if (!q.abId) info.push('<li class="warn">Bu fatura hiçbir abonelikle eşleşmedi (EIC: ' + U.escapeHtml(r.eic || '—') + '). Abonelik seçin veya faturadan yeni abonelik oluşturun.</li>');
-    if (q.abId && r.donem) {
-      var ayni = S.faturaList(null, q.abId).filter(function (f) { return f.donem === r.donem && f.faturaNo !== r.faturaNo; });
-      if (ayni.length) info.push('<li class="warn">Bu abonelikte ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait başka fatura da kayıtlı (' + ayni.map(function (f) { return U.escapeHtml(f.faturaNo || '—'); }).join(', ') + '). Düzeltme/iptal faturası olabilir; kontrol edin.</li>');
-    }
-    var kardes = queue.filter(function (x) { return x !== q && x.record && x.record.donem === r.donem && x.status === 'hazir' && x.abId === q.abId; });
-    if (kardes.length) info.push('<li class="warn">Bu yüklemede ' + U.escapeHtml(U.donemLabel(r.donem)) + ' dönemine ait ' + (kardes.length + 1) + ' fatura var.</li>');
-    if (dup) info.push('<li class="warn">Bu abonelikte aynı fatura zaten kayıtlı (' + U.escapeHtml(dup.faturaNo || U.donemLabel(dup.donem)) + '). Kaydederseniz mevcut kayıt güncellenir.</li>');
-    res.warnings.forEach(function (w) { info.push('<li>' + U.escapeHtml(w) + '</li>'); });
-    if (info.length) c.appendChild(UI.el('ul', { class: 'notes' }, info.join('')));
-
-    c.appendChild(UI.el('div', { class: 'checks' }, checks));
-
-    // Meta bilgiler
-    var m = res.meta;
-    c.appendChild(UI.el('div', { class: 'meta' },
-      [['Abone', m.musteriAdi], ['VKN', m.vkn], ['Vergi Dairesi', m.vergiDairesi], ['Adres', m.adres], ['Tedarikçi VKN', m.tedarikciVkn], ['Sayaç', m.sayac], ['ETTN', m.ettn]]
-        .filter(function (x) { return x[1]; }).map(function (x) { return '<span><i>' + x[0] + ':</i> ' + U.escapeHtml(x[1]) + '</span>'; }).join('')));
-
-    // Kalemler: kategorisi tanınmayan varsa açık gelir
-    var tanimsizVar = (r.kalemler || []).some(function (k) { return K.resolve(k.ad, r.bicim, S.eslestirme()).kategori === 'tanimsiz'; });
-    var kdet = UI.el('details', { class: 'preview' });
-    if (tanimsizVar) kdet.open = true;
-    kdet.appendChild(UI.el('summary', null, 'Fatura kalemleri (' + (r.kalemler || []).length + ')' + (tanimsizVar ? ' — tanınmayan kalem var, kategorisini seçin' : '')));
-    kdet.appendChild(App.kalemUI.kalemTable(r, reapplyAll));
-    c.appendChild(kdet);
-
-    // Standart özet önizleme / düzeltme
-    var det = UI.el('details', { class: 'preview' });
-    det.appendChild(UI.el('summary', null, 'Standart özeti göster / düzelt'));
-    var grid = UI.el('div', { class: 'preview-grid' });
-    F.GROUPS.forEach(function (g) {
-      var fs = F.FIELDS.filter(function (f) { return f.group === g.id && !f.hidden; });
-      if (!fs.length) return;
-      var sec = UI.el('div', { class: 'pg-group' }, '<h5>' + U.escapeHtml(g.label) + '</h5>');
-      fs.forEach(function (f) {
-        var v = f.calc ? calc[f.key] : r[f.key];
-        var row = UI.el('label', { class: 'pg-row' + (f.calc ? ' calc' : '') + (!f.calc && (v === undefined || v === null || v === '') ? ' missing' : '') });
-        row.appendChild(UI.el('span', null, U.escapeHtml(f.label) + (f.unit ? ' <i>' + U.escapeHtml(f.unit) + '</i>' : '')));
-        if (f.calc) {
-          var st = F.checkStatus(f, v, r);
-          row.appendChild(UI.el('b', { class: st || '' }, v === null || v === undefined ? '—' : U.formatTRNumber(v, f.dec === undefined ? 2 : f.dec)));
-        } else {
-          var inp = UI.el('input', { type: 'text', value: displayValue(f, v) });
-          inp.onchange = function () {
-            r[f.key] = parseValue(f, inp.value);
-            r.duzeltilen = r.duzeltilen || {}; r.duzeltilen[f.key] = true; // kalem toplamı bu alanın üzerine yazmasın
-            renderQueue();
-          };
-          row.appendChild(inp);
-        }
-        sec.appendChild(row);
-      });
-      grid.appendChild(sec);
-    });
-    det.appendChild(grid);
-    var raw = UI.el('details', { class: 'raw' });
-    raw.appendChild(UI.el('summary', null, 'PDF’ten çıkarılan ham metin'));
-    raw.appendChild(UI.el('pre', null, U.escapeHtml(res.lines.join('\n'))));
-    det.appendChild(raw);
-    c.appendChild(det);
+    var dup = q.abId && r ? S.faturaFindDuplicate(q.abId, r) : null;
+    if (dup) c.appendChild(UI.el('p', { class: 'warn-text' }, 'Bu abonelikte aynı fatura zaten kayıtlı; kaydederseniz güncellenir.'));
 
     var foot = UI.el('div', { class: 'fcard-foot' });
     foot.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { q.status = 'atlandi'; renderQueue(); } }, 'Atla'));
-    var saveBtn = UI.el('button', { class: 'btn primary sm', onclick: function () { saveOne(q); renderQueue(); } }, dup ? 'Güncelle' : 'Kaydet');
-    if (!q.abId) saveBtn.disabled = true;
-    foot.appendChild(saveBtn);
+    foot.appendChild(UI.el('button', { class: 'btn sm' + (r ? '' : ' primary'), onclick: function () { pencereAc(q); } }, r ? 'Faturayı aç / tanımları düzenle' : 'Faturayı aç ve tanımla'));
+    var kaydet = UI.el('button', { class: 'btn primary sm', onclick: function () {
+      var sr = sorunlar(q);
+      if (sr.some(function (s) { return s.tur === 'err'; }) || (q.sonuc && q.sonuc.tanimsiz.length)) { pencereAc(q); return; }
+      saveOne(q); renderQueue();
+    } }, dup ? 'Güncelle' : 'Kaydet');
+    if (!r || !q.abId) kaydet.disabled = true;
+    foot.appendChild(kaydet);
     c.appendChild(foot);
     return c;
   }
 
-  // Eşleştirme değişince bekleyen faturaların özetini de yeniden hesapla
-  function reapplyAll() {
-    queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); });
-    renderQueue();
+  function pencereAc(q) {
+    App.faturaPencere.ac(q, {
+      abonelikSelect: function (secili) { return abonelikSelect(secili, '— Abonelik seçin —', ''); },
+      // Şablon kaydedilince aynı şablonla tanınan bekleyen faturalar yeniden okunur
+      onSablon: function () { queue.forEach(function (x) { if (x !== q && (x.status === 'hazir' || x.status === 'sablonsuz')) sablonUygula(x); }); },
+      onKaydet: function (x) { x.status = 'hazir'; var ok = saveOne(x); render(containerRef); return ok; },
+      onKapat: function () { queue.forEach(function (x) { if (x.status === 'hazir' || x.status === 'sablonsuz') sablonUygula(x); }); render(containerRef); }
+    });
   }
-  S.onChange(function () { if (queue.length) queue.forEach(function (q) { if (q.record && q.record.kalemler) K.applySummary(q.record, S.eslestirme()); }); });
 
   function detay(r) { return r.detay || {}; }
   // Sözleşme gücü faturada "Güç Bedeli" kaleminin miktarı (kW) olarak yazar
@@ -2729,39 +3594,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     return k && k.miktar ? k.miktar : (detay(r).anlasmaGucu || null);
   }
 
-  function displayValue(f, v) {
-    if (v === null || v === undefined) return '';
-    if (f.type === 'num') return U.formatTRNumber(v, f.dec === undefined ? 2 : f.dec);
-    if (f.type === 'date') return U.formatTRDate(v);
-    return String(v);
-  }
-  function parseValue(f, s) {
-    s = String(s).trim();
-    if (s === '') return null;
-    if (f.type === 'num') return U.parseTRNumber(s);
-    if (f.type === 'date') return U.parseTRDate(s) || s;
-    return s;
-  }
-
   function saveOne(q, quietToast) {
     var t = q.abId ? S.abonelikGet(q.abId) : null;
-    if (!t || q.status !== 'hazir') return false;
+    if (!t || !q.record) return false;
     var rec = Object.assign({}, q.record);
     var dup = S.faturaFindDuplicate(q.abId, rec);
     if (dup) rec.id = dup.id;
     rec.abonelikId = t.id;
     rec.tuketimTesisId = t.tuketimTesisId;
-    rec.kaynak = { dosya: q.name, yukleme: new Date().toISOString(), meta: q.result.meta };
+    rec.kaynak = { dosya: q.name, yukleme: new Date().toISOString(), sablon: q.sablon ? q.sablon.ad : null };
     S.faturaSave(rec);
     // Abonelik kartındaki boş alanları faturadan tamamla
     var changed = false;
     [['eic', rec.eic], ['sozlesmeNo', rec.sozlesmeNo], ['tedarikci', rec.tedarikci], ['tuketiciGrubuFatura', rec.tuketiciGrubu],
-     ['carpan', detay(rec).carpan], ['sozlesmeGucu', sozlesmeGucu(rec)]].forEach(function (p) {
+     ['sozlesmeGucu', sozlesmeGucu(rec)]].forEach(function (p) {
       if ((t[p[0]] === undefined || t[p[0]] === null || t[p[0]] === '') && p[1] !== undefined && p[1] !== null) { t[p[0]] = p[1]; changed = true; }
     });
-    if (detay(rec).gecmisYilKwh && rec.donem && (!t.oncekiYilTuketimDonem || rec.donem >= t.oncekiYilTuketimDonem)) {
-      t.oncekiYilTuketim = detay(rec).gecmisYilKwh; t.oncekiYilTuketimDonem = rec.donem; changed = true;
-    }
     if (changed) S.abonelikSave(t);
     q.status = 'kaydedildi';
     if (!quietToast) UI.toast(q.name + ' kaydedildi.', 'ok');
@@ -2769,11 +3617,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   function saveAll() {
-    var n = 0;
+    var n = 0, atlanan = 0;
     App.quietRender = true;
-    try { queue.forEach(function (q) { if (q.status === 'hazir' && q.abId && saveOne(q, true)) n++; }); }
-    finally { App.quietRender = false; }
-    UI.toast(n + ' fatura kaydedildi.', 'ok');
+    try {
+      queue.forEach(function (q) {
+        if (q.status !== 'hazir') return;
+        var sorunlu = !q.abId || sorunlar(q).some(function (s) { return s.tur === 'err'; }) || (q.sonuc && q.sonuc.tanimsiz.length);
+        if (sorunlu) { atlanan++; return; }
+        if (saveOne(q, true)) n++;
+      });
+    } finally { App.quietRender = false; }
+    var sablonsuz = queue.filter(function (q) { return q.status === 'sablonsuz'; }).length;
+    UI.toast(n + ' fatura kaydedildi.' + (atlanan ? ' ' + atlanan + ' fatura sorunlu olduğu için bekletildi.' : '') + (sablonsuz ? ' ' + sablonsuz + ' faturanın şablonu yok.' : ''), n ? 'ok' : '');
     render(containerRef);
   }
 
@@ -2788,8 +3643,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   function createAbonelikFrom(q) {
-    var r = q.record, m = q.result.meta;
-    var grup = r.tuketiciGrubu || '';
+    var r = q.record || (q.parsed && q.parsed.record) || {};
+    var p = q.parsed ? q.parsed.record : r;
+    var m = q.parsed ? q.parsed.meta : {};
+    var grup = r.tuketiciGrubu || p.tuketiciGrubu || '';
     var prefill = {
       ad: (m.musteriAdi || 'Yeni Abonelik').split(/\s+/).slice(0, 3).join(' '),
       yeniTesisAdi: (m.musteriAdi || 'Yeni Tesis').split(/\s+/).slice(0, 3).join(' '),
@@ -2797,17 +3654,42 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       aboneGrubu: guessAbone(grup),
       gerilim: /\bOG\b/.test(grup) ? 'OG' : /\bAG\b/.test(grup) ? 'AG' : /\bYG\b/.test(grup) ? 'YG' : '',
       tarifeTerim: /\bTT\b|Tek Terim/i.test(grup) ? 'Tek Terimli' : /\bÇT\b|\bCT\b|Çift Terim/i.test(grup) ? 'Çift Terimli' : '',
-      tarifeZaman: /Tek Zaman/i.test(grup) ? 'Tek Zamanlı' : /Üç Zaman/i.test(grup) || r.t2Kwh || r.t3Kwh ? 'Üç Zamanlı' : '',
-      serbestTuketici: /toptan|ortakl/i.test(r.tedarikci || '') ? 'Evet' : '',
-      tedarikci: r.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic, sozlesmeNo: r.sozlesmeNo, tesisatNo: r.tesisatNo,
-      sozlesmeGucu: sozlesmeGucu(r), carpan: detay(r).carpan, oncekiYilTuketim: detay(r).gecmisYilKwh || null, oncekiYilTuketimDonem: r.donem
+      tarifeZaman: /Tek Zaman/i.test(grup) ? 'Tek Zamanlı' : /Üç Zaman/i.test(grup) || p.t2Kwh || p.t3Kwh ? 'Üç Zamanlı' : '',
+      serbestTuketici: /toptan|ortakl/i.test(p.tedarikci || '') ? 'Evet' : '',
+      tedarikci: p.tedarikci, tuketiciGrubuFatura: grup, eic: r.eic || p.eic, sozlesmeNo: r.sozlesmeNo || p.sozlesmeNo, tesisatNo: r.tesisatNo || p.tesisatNo,
+      sozlesmeGucu: sozlesmeGucu(p), carpan: detay(p).carpan, oncekiYilTuketim: detay(p).gecmisYilKwh || null, oncekiYilTuketimDonem: p.donem
     };
     App.pages.tesisler.editAbonelik(null, null, prefill, function (a) {
       q.abId = a.id;
-      // Aynı EIC/sözleşme no'lu diğer faturalar da yeni aboneliğe eşleşsin
-      queue.forEach(function (x) { if (x.status === 'hazir' && !x.abId) x.abId = resolveAbonelik(x.record); });
+      queue.forEach(function (x) { if ((x.status === 'hazir' || x.status === 'sablonsuz') && !x.abId) x.abId = resolveAbonelik(x); });
       render(containerRef);
     });
+  }
+
+  function sablonlarPenceresi() {
+    var body = UI.el('div');
+    function ciz() {
+      var list = S.sablonList();
+      body.innerHTML = '<p class="muted">Şablon, bir tedarikçinin fatura biçiminde hangi değerin nerede olduğunu ve ne anlama geldiğini tanımlar. ' +
+        'Faturada tanıma metinlerinin hepsi geçiyorsa şablon otomatik uygulanır.</p>' +
+        (list.length ? '<table class="table"><thead><tr><th>Şablon</th><th>Tanıma metinleri</th><th class="num">Bilgi</th><th class="num">Kalem</th><th class="num">Yok sayılan</th><th>Güncelleme</th><th></th></tr></thead><tbody>' +
+          list.map(function (s) {
+            var say = function (t) { return s.tanimlar.filter(function (x) { return x.tur === t; }).length; };
+            return '<tr><td><b>' + U.escapeHtml(s.ad) + '</b></td><td>' + U.escapeHtml((s.anahtarlar || []).join(', ')) + '</td>' +
+              '<td class="num">' + (say('alan') + say('kural') + say('sabit')) + '</td><td class="num">' + say('kalem') + '</td><td class="num">' + say('yoksay') + '</td>' +
+              '<td>' + U.formatTRDate((s.guncelleme || '').slice(0, 10)) + '</td><td><button class="btn xs danger" data-sil="' + s.id + '">Sil</button></td></tr>';
+          }).join('') + '</tbody></table>' : '<p><i>Kayıtlı şablon yok.</i></p>');
+    }
+    body.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sil]');
+      if (!b) return;
+      var s = S.sablonGet(b.dataset.sil);
+      if (s && confirm('"' + s.ad + '" şablonu silinsin mi? Kayıtlı faturalar etkilenmez.')) { S.sablonDelete(s.id); ciz(); }
+    });
+    ciz();
+    UI.openModal('Fatura Şablonları', body, [{ label: 'Kapat', onclick: function () { UI.closeModal(); render(containerRef); } }]);
+    var box = document.querySelector('.modal-box');
+    if (box) box.classList.add('wide');
   }
 
   App.pages = App.pages || {};

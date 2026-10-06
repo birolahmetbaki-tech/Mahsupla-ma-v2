@@ -8,7 +8,7 @@
   var listeners = [];
 
   function empty() {
-    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {} };
+    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {}, sablonlar: [] };
   }
 
   // Eksik koleksiyonları ekler; sürüm numarasına dokunmaz (eski veri sürüm 1 sayılır).
@@ -186,7 +186,7 @@
   }
   function faturaSave(f, silent) {
     f.guncelleme = new Date().toISOString();
-    if (f.kalemler) root.App.kalemler.applySummary(f, db.kalemEslestirme);
+    if (f.kalemler) root.App.kalemler.applySummary(f, db.kalemEslestirme, sablonHaritasi(f.sablonId));
     if (!f.id) { f.id = U.uid('ft'); f.olusturma = f.guncelleme; db.faturalar.push(f); }
     else {
       var i = db.faturalar.findIndex(function (x) { return x.id === f.id; });
@@ -198,6 +198,23 @@
   function faturaDelete(id) {
     db.faturalar = db.faturalar.filter(function (f) { return f.id !== id; });
     save();
+  }
+
+  // --- Fatura şablonları (bkz. sablon.js)
+  function sablonList() { return db.sablonlar.slice().sort(function (a, b) { return String(a.ad).localeCompare(String(b.ad), 'tr'); }); }
+  function sablonGet(id) { return db.sablonlar.find(function (s) { return s.id === id; }) || null; }
+  function sablonSave(sb) {
+    sb.guncelleme = new Date().toISOString();
+    var i = db.sablonlar.findIndex(function (x) { return x.id === sb.id; });
+    if (i >= 0) db.sablonlar[i] = sb; else db.sablonlar.push(sb);
+    recomputeAll(true);
+    save();
+    return sb;
+  }
+  function sablonDelete(id) { db.sablonlar = db.sablonlar.filter(function (s) { return s.id !== id; }); save(); }
+  function sablonHaritasi(id) {
+    var sb = id ? sablonGet(id) : null;
+    return sb && root.App.sablon ? root.App.sablon.sablonKategorileri(sb) : null;
   }
 
   // --- Kalem eşleştirme sözlüğü
@@ -213,7 +230,7 @@
   // Sözlük değişince tüm faturaların özetini yeniden hesaplar (elle düzeltilen alanlara dokunmaz)
   function recomputeAll(silent) {
     var K = root.App.kalemler;
-    db.faturalar.forEach(function (f) { if (f.kalemler) K.applySummary(f, db.kalemEslestirme); });
+    db.faturalar.forEach(function (f) { if (f.kalemler) K.applySummary(f, db.kalemEslestirme, sablonHaritasi(f.sablonId)); });
     if (!silent) save();
   }
   // Kayıtlı faturalarda geçen tüm kalem adları (biçim bazında), örnek tutar ve sayı ile
@@ -251,6 +268,7 @@
         (d[k] || []).forEach(function (x) { if (!ids[x.id]) db[k].push(x); });
       });
       Object.keys(d.kalemEslestirme || {}).forEach(function (k) { if (!db.kalemEslestirme[k]) db.kalemEslestirme[k] = d.kalemEslestirme[k]; });
+      (d.sablonlar || []).forEach(function (sb) { if (!sablonGet(sb.id)) db.sablonlar.push(sb); });
       recomputeAll(true);
     } else {
       migrate(d);
@@ -269,6 +287,7 @@
     abonelikList: abonelikList, abonelikGet: abonelikGet, abonelikSave: abonelikSave, abonelikDelete: abonelikDelete, abonelikMatch: abonelikMatch,
     uretimList: uretimList, uretimGet: uretimGet, uretimSave: uretimSave, uretimDelete: uretimDelete,
     faturaList: faturaList, faturaGet: faturaGet, faturaSave: faturaSave, faturaDelete: faturaDelete, faturaFindDuplicate: faturaFindDuplicate,
+    sablonList: sablonList, sablonGet: sablonGet, sablonSave: sablonSave, sablonDelete: sablonDelete,
     eslestirme: eslestirme, eslestirmeSet: eslestirmeSet, recomputeAll: recomputeAll, kalemAdlari: kalemAdlari,
     exportJSON: exportJSON, importJSON: importJSON, stats: stats
   };

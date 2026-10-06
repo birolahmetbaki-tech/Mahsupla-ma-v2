@@ -563,8 +563,10 @@
             pages.push({
               page: pn,
               width: vp.width,
+              height: vp.height,
               items: tc.items.filter(function (it) { return it.str && it.str.trim(); }).map(function (it) {
-                return { str: it.str, x: it.transform[4], y: vp.height - it.transform[5] };
+                // w/h: fatura penceresinde değerlerin üzerine kutu çizmek için
+                return { str: it.str, x: it.transform[4], y: vp.height - it.transform[5], w: it.width || 0, h: it.height || Math.abs(it.transform[3]) || 8 };
               })
             });
           });
@@ -580,7 +582,7 @@
     var out = [];
     pages.forEach(function (pg) {
       var starts = pg.items.some(function (it) { return /^Fatura (Sıra )?No\b/i.test(it.str.trim()); });
-      if (starts || !out.length) out.push({ pageFrom: pg.page, pageTo: pg.page, items: pg.items, width: pg.width });
+      if (starts || !out.length) out.push({ pageFrom: pg.page, pageTo: pg.page, items: pg.items, width: pg.width, height: pg.height });
       else out[out.length - 1].pageTo = pg.page;
     });
     return out;

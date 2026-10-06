@@ -49,11 +49,13 @@
   }
 
   // userMap: { 'bicim|ad': kategori, '*|ad': kategori }
-  function resolve(ad, bicim, userMap) {
+  // sablonMap: { normAd: kategori } — şablonda tanımlı kalem kategorileri (kullanıcı sözlüğünden sonra, varsayılandan önce)
+  function resolve(ad, bicim, userMap, sablonMap) {
     userMap = userMap || {};
     var n = norm(ad);
     var u = userMap[(bicim || 'genel') + '|' + n] || userMap['*|' + n];
     if (u) return { kategori: u, kaynak: 'kullanici' };
+    if (sablonMap && sablonMap[n]) return { kategori: sablonMap[n], kaynak: 'sablon' };
     var v = varsayilan(ad, bicim);
     if (v) return { kategori: v, kaynak: 'varsayilan' };
     return { kategori: 'tanimsiz', kaynak: 'yok' };
@@ -62,12 +64,12 @@
   function r2(x) { return Math.round(x * 100) / 100; }
 
   // Kalemlerden standart özet alanlarını hesaplar. Elle düzeltilmiş alanlara dokunmaz.
-  function applySummary(rec, userMap) {
+  function applySummary(rec, userMap, sablonMap) {
     var kalemler = rec.kalemler || [];
     var top = {}, tanimsiz = [];
     var mahsupKwh = 0, mahsupKwhVar = false;
     kalemler.forEach(function (k) {
-      var res = resolve(k.ad, rec.bicim, userMap);
+      var res = resolve(k.ad, rec.bicim, userMap, sablonMap);
       k.kategori = res.kategori;
       var kat = res.kategori === 'tanimsiz' ? 'diger' : res.kategori; // tanımsızlar onaylanana kadar "diğer"e eklenir
       if (res.kategori === 'tanimsiz') tanimsiz.push(k.ad);
