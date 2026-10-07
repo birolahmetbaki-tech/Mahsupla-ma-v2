@@ -1,39 +1,293 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mahsupla</title>
-  <link rel="stylesheet" href="css/app.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mahsupla</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2213%22 font-size=%2213%22>⚡</text></svg>">
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><span class="logo">⚡</span> Mahsupla <small>Lisanssız Üretim Mahsuplaşma Takibi</small></div>
-    <nav class="nav">
-      <a href="#/tesisler" data-page="tesisler">Tesisler</a>
-      <a href="#/veriler" data-page="veriler">Veriler</a>
-    </nav>
-    <div class="top-actions">
-      <button class="btn sm ghost" id="btnBackup" title="Tüm verileri JSON dosyası olarak indir">Yedek Al</button>
-      <button class="btn sm ghost" id="btnRestore" title="JSON yedeğini geri yükle">Yedekten Yükle</button>
-    </div>
+
+<nav class="yan-cubuk">
+  <div class="marka-satir">
+    <span class="marka" id="marka" title="Değiştirmek için çift tıklayın">Mahsupla</span>
+    <button type="button" class="daralt-btn" id="daraltBtn" title="Kenar çubuğunu kapat"
+            aria-label="Kenar çubuğunu kapat" aria-expanded="true">‹</button>
+  </div>
+  <button type="button" class="yan-btn secili" data-sayfa="acilis">
+    <span class="simge">⌂</span><span class="etiket">Ana Sayfa</span>
+  </button>
+  <button type="button" class="yan-btn" data-sayfa="pano">
+    <span class="simge">▤</span><span class="etiket">Dashboard</span>
+  </button>
+  <button type="button" class="yan-btn" data-sayfa="veri">
+    <span class="simge">▦</span><span class="etiket">Veri</span>
+  </button>
+  <button type="button" class="yan-btn" data-sayfa="hesap">
+    <span class="simge">∑</span><span class="etiket">Hesaplanmış Değerler</span>
+  </button>
+  <button type="button" class="yan-btn" data-sayfa="kontrol">
+    <span class="simge">⚠</span><span class="etiket">Veri Tutarlılık Kontrolü</span>
+  </button>
+  <div class="yan-bosluk"></div>
+  <div class="robot-logo-satir">
+    <button type="button" class="robot-logo" id="robotLogo" title="Analiz robotu"
+            aria-label="Analiz robotunu aç" aria-expanded="false">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <circle class="robot-logo-zemin" cx="20" cy="20" r="19"></circle>
+        <rect x="11" y="14" width="18" height="14" rx="5"></rect>
+        <circle class="robot-goz" cx="16" cy="21" r="2.1"></circle>
+        <circle class="robot-goz" cx="24" cy="21" r="2.1"></circle>
+        <path d="M20 9.5v4.5" stroke-width="1.8" stroke-linecap="round"></path>
+        <circle cx="20" cy="8.6" r="1.8"></circle>
+      </svg>
+    </button>
+  </div>
+  <button type="button" class="yan-btn" id="ayarlarBtn">
+    <span class="simge">⚙</span><span class="etiket">Ayarlar</span>
+  </button>
+</nav>
+
+<!-- Analiz robotu: logodan açılan sohbet penceresi -->
+<aside class="robot-pencere" id="robotPencere" hidden aria-label="Analiz robotu">
+  <header class="robot-baslik">
+    <span class="robot-nokta" aria-hidden="true"></span>
+    <b>Analiz Robotu</b>
+    <button type="button" id="robotTemizle" class="robot-mini" title="Sohbeti temizle">⟲</button>
+    <button type="button" id="robotBuyut" class="robot-mini" title="Pencereyi büyüt"
+            aria-label="Pencereyi büyüt" aria-pressed="false">⛶</button>
+    <button type="button" id="robotKapat" class="robot-mini" title="Kapat" aria-label="Kapat">×</button>
   </header>
+  <div class="robot-akis" id="robotAkis"></div>
+  <div class="robot-oneri" id="robotOneri"></div>
+  <form class="robot-giris" id="robotGiris">
+    <input type="text" id="robotSoru" placeholder="Komut yazın…" autocomplete="off"
+           aria-label="Robota komut">
+    <button type="submit" title="Gönder" aria-label="Gönder">➤</button>
+  </form>
+</aside>
 
-  <main id="main"></main>
-  <div id="modal" class="modal"></div>
-  <div id="toasts" class="toasts"></div>
+<main class="icerik">
 
-  <script src="vendor/xlsx/xlsx.full.min.js"></script>
-  <script src="js/util.js"></script>
-  <script src="js/fields.js"></script>
-  <script src="js/kalemler.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/osos.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/tablo.js"></script>
-  <script src="js/page-tesisler.js"></script>
-  <script src="js/page-veriler.js"></script>
-  <script src="js/page-osos.js"></script>
-  <script src="js/app.js"></script>
+  <!-- ==== Açılış sayfası ==== -->
+  <section class="sayfa" id="sayfa-acilis">
+    <div class="acilis" id="acilis"></div>
+  </section>
+
+  <!-- ==== Dashboard ==== -->
+  <section class="sayfa" id="sayfa-pano" hidden>
+    <header class="topbar">
+      <h1>Dashboard <span>/ dönem özeti</span></h1>
+      <div class="actions">
+        <span id="panoHazirlar" class="hazir-kutu">
+          <button type="button" class="pano-hazir" data-hazir="son12">Son 12 ay</button>
+          <button type="button" class="pano-hazir" data-hazir="son24">Son 24 ay</button>
+          <button type="button" class="pano-hazir" data-hazir="son36">Son 36 ay</button>
+          <button type="button" class="pano-hazir" data-hazir="tumu">Tümü</button>
+        </span>
+        <span class="ayrac"></span>
+        <label>Dönem: <select id="panoBas"></select></label>
+        <span class="donem-ayrac">&rarr;</span>
+        <select id="panoSon"></select>
+        <span class="ayrac"></span>
+        <button id="panoEkle" title="Panoya yeni pencere ekle">Pencere Ekle</button>
+        <span class="hazir-kutu zum-kutu">
+          <button type="button" id="panoZumAzalt" title="%1 uzaklaş">−</button>
+          <button type="button" id="panoSigdir" title="Yakınlaştırmayı %100'e döndür">Sığdır <span id="panoZum">%100</span></button>
+          <button type="button" id="panoZumArtir" title="%1 yakınlaş">+</button>
+        </span>
+        <span id="panoBilgi" class="durum"></span>
+      </div>
+    </header>
+    <div class="pano-tuval" id="panoTuval">
+      <div class="pano-sahne" id="panoSahne">
+        <div class="pano-katman" id="panoKatman"></div>
+      </div>
+    </div>
+    <p class="ipucu">Pencereleri sürükleyerek taşıyın, köşeden boyutlandırın, çift tıklayarak ayarlayın.
+       Boş alanı tutup sürükleyerek panoda gezinin; <b>Z</b> tuşu basılıyken tekerlekle yakınlaşın.</p>
+  </section>
+
+  <!-- ==== Veri sayfası ==== -->
+  <section class="sayfa" id="sayfa-veri" hidden>
+    <header class="topbar">
+      <h1>Veri <span id="veriAltBaslik">/ aylık tüketim, üretim ve mahsuplaşma</span></h1>
+      <div class="actions">
+        <button id="satirEkle">+ Satır</button>
+        <button id="sutunEkle">+ Sütun</button>
+        <button id="yilEkle">+ Yıl</button>
+        <span class="ayrac"></span>
+        <span class="ondalik-kutu" title="Virgülden sonraki basamak sayısı">
+          <button id="ondalikAzalt" class="mini" title="Ondalık basamağı azalt">,0&minus;</button>
+          <b id="ondalikDeger">2</b>
+          <button id="ondalikArtir" class="mini" title="Ondalık basamağı artır">,00+</button>
+        </span>
+        <span class="ayrac"></span>
+        <label class="dosya-btn">
+          Excel İçe Aktar
+          <input type="file" id="dosya" accept=".xlsx,.xlsm,.xls,.csv">
+        </label>
+        <button id="veriDisaAktar" title="Bütün sekmeleri tek Excel dosyası olarak indir">Excel Dışa Aktar</button>
+        <span class="ayrac"></span>
+        <button id="sablonaDon" title="Açık sekmeyi şablonuna döndürür">Şablona Dön</button>
+        <button id="temizle" class="danger" title="Açık sekmedeki verileri siler">Verileri Temizle</button>
+        <span id="durum" class="durum"></span>
+      </div>
+    </header>
+
+    <div class="formul-cubugu">
+      <input type="text" id="adres" class="adres" readonly title="Seçili hücre">
+      <span class="fx" title="Formül">fx</span>
+      <input type="text" id="formulGirisi" class="formul-girisi" spellcheck="false"
+             placeholder="Hücre içeriği veya formül — örn. =MİN(C;D), =D-E, =Fiyatlar!C">
+      <span id="formulBilgi" class="formul-bilgi"></span>
+    </div>
+
+    <div class="grid-wrap">
+      <table id="grid">
+        <thead>
+          <tr id="basliklar" class="baslik-satiri"></tr>
+          <tr id="birimler" class="birim-satiri"></tr>
+        </thead>
+        <tbody id="satirlar"></tbody>
+      </table>
+    </div>
+    <div class="sekme-cubugu" role="tablist" aria-label="Sayfa sekmeleri">
+      <button type="button" id="sekmeOnceki" class="sekme-ok" title="Önceki sekme (Ctrl+PageUp)">◀</button>
+      <button type="button" id="sekmeSonraki" class="sekme-ok" title="Sonraki sekme (Ctrl+PageDown)">▶</button>
+      <button type="button" id="sekmeListesi" class="sekme-ok" title="Tüm sekmeler">☰</button>
+      <div class="sekme-liste" id="sekmeler"></div>
+      <button type="button" id="sekmeEkle" class="sekme-ekle" title="Yeni sekme">+</button>
+    </div>
+
+    <p class="ipucu">
+      Her hücreye yazabilirsiniz · <b>=</b> ile başlayan giriş formüldür (<b>=MİN(C;D)</b>, <b>=D-E</b>, <b>=Fiyatlar!C</b>) ·
+      Başlıktaki <b>▾</b> sütun işlemleri ve <b>hesap rolü</b>, soldaki <b>#</b> satır işlemleri ·
+      Alttaki sekmeler: tıkla geç, çift tıkla adlandır, <b>sağ tık</b> tesis bilgileri ve sekme işlemleri, sürükle sırala
+    </p>
+  </section>
+
+  <!-- ==== Analiz ==== -->
+  <section class="sayfa" id="sayfa-hesap" hidden>
+    <header class="topbar">
+      <h1>Hesaplanmış Değerler <span>/ mahsuplaşma, ihtiyaç fazlası ve yıllık limit</span></h1>
+      <div class="actions">
+        <span class="hazir-kutu">
+          <button type="button" class="gorunum-btn" data-gorunum="tesis" title="Tek tesisin tüm göstergeleri">Tesis</button>
+          <button type="button" class="gorunum-btn" data-gorunum="matris" title="Tek gösterge, tüm tesisler">Matris</button>
+        </span>
+        <label id="hesapTesisAlan">Tesis: <select id="hesapTesis"></select></label>
+        <label id="hesapGostergeAlan" hidden>Gösterge: <select id="hesapGosterge"></select></label>
+        <span class="ayrac"></span>
+        <button id="hesapGostergeSec" title="Tabloda hangi göstergelerin görüneceğini seçin">Göstergeler</button>
+        <button id="hesapRoller" title="Tesis sekmelerindeki sütunların hesap rolleri">Sütun Rolleri</button>
+        <button id="hesapTesisBilgi" title="Kurulu güç, abone grubu, limit referansı">Tesis Bilgileri</button>
+        <button id="hesapRozet" title="Her göstergenin beslendiği veri sütunlarını başlıkta göster">Kaynakları Göster</button>
+        <span class="ayrac"></span>
+        <button id="hesapDisaAktar" title="Ekrandaki tabloyu Excel dosyası olarak indir">Dışa Aktar</button>
+        <button id="hesapTumunuAktar" title="Her tesis ayrı sayfa olacak şekilde tüm göstergeleri indir">Tümünü Aktar</button>
+        <span id="hesapBilgi" class="durum genis-durum"></span>
+      </div>
+    </header>
+
+    <div class="hesap-alan">
+    <div class="grid-wrap hesap-grid">
+      <table id="hesapTablo">
+        <thead>
+          <tr id="hBasliklar" class="baslik-satiri"></tr>
+          <tr id="hBirimler" class="birim-satiri"></tr>
+        </thead>
+        <tbody id="hSatirlar"></tbody>
+      </table>
+    </div>
+    <aside class="denetci" id="hesapDenetci" hidden></aside>
+    </div>
+
+    <p class="ipucu">
+      <b>Bir hücreye tıklayın</b>: hangi veriyle nasıl hesaplandığı sağda açılır ·
+      Değerler veri sekmelerinden hesaplanır, elle değiştirilemez ·
+      Hesaplar sütunları <b>rollerinden</b> tanır (Sütun Rolleri) · Her yılın sonunda yıl toplamı vardır ·
+      Sütunları başlığından sürükleyerek sıralayın
+    </p>
+  </section>
+
+  <!-- ==== Veri tutarlılık kontrolü ==== -->
+  <section class="sayfa" id="sayfa-kontrol" hidden>
+    <header class="topbar">
+      <h1>Veri Tutarlılık Kontrolü <span>/ şüpheli ve tutarsız değerler</span></h1>
+      <div class="actions">
+        <span class="sayac-kutu">
+          <span class="rozet hata" title="Düzeltilmesi gereken">Hata <b id="kontrolHata">0</b></span>
+          <span class="rozet uyari" title="Gözden geçirilmeli">Uyarı <b id="kontrolUyari">0</b></span>
+          <span class="rozet bilgi" title="Bilgi">Bilgi <b id="kontrolBilgi">0</b></span>
+        </span>
+        <span class="ayrac"></span>
+        <label>Seviye:
+          <select id="kontrolSeviye">
+            <option value="hepsi">Hepsi</option>
+            <option value="hata">Yalnızca hatalar</option>
+            <option value="uyari">Yalnızca uyarılar</option>
+            <option value="bilgi">Yalnızca bilgiler</option>
+          </select>
+        </label>
+        <label>Sekme: <select id="kontrolSayfa"></select></label>
+        <label>Kontrol: <select id="kontrolTur"></select></label>
+        <button id="kontrolYenile">Yeniden Tara</button>
+        <span id="kontrolOzet" class="durum genis-durum"></span>
+      </div>
+    </header>
+
+    <div class="grid-wrap kontrol-grid">
+      <table id="kontrolTablo">
+        <thead>
+          <tr class="baslik-satiri kontrol-baslik">
+            <th>Seviye</th><th>Sekme</th><th>Dönem</th><th>Alan</th>
+            <th>Bulgu</th><th>Değer</th><th>Beklenen</th>
+          </tr>
+        </thead>
+        <tbody id="kontrolSatirlar"></tbody>
+      </table>
+    </div>
+
+    <p class="ipucu">
+      Kontroller veri sayfasındaki her değişiklikten sonra kendiliğinden yeniden çalışır ·
+      <b>Hata</b>: fiziksel olarak mümkün olmayan veya kendi içinde çelişen değer ·
+      <b>Uyarı</b>: mümkün ama şüpheli (limit aşımı, fiyat, bedel) · <b>Bilgi</b>: dikkat edilmesi gereken durum ·
+      Sağdaki <b>↗</b> düğmesi sizi ilgili sekmedeki hücreye götürür
+    </p>
+  </section>
+
+</main>
+
+<div id="menu" class="menu" hidden></div>
+
+<div id="ortu" class="ortu" hidden>
+  <div class="kutu" id="kutu"></div>
+</div>
+
+<script src="vendor/xlsx/xlsx.full.min.js"></script>
+<script src="js/metin.js"></script>
+<script src="js/tema.js"></script>
+<script src="js/kilavuz.js"></script>
+<script src="js/surum.js"></script>
+<script src="js/diyalog.js"></script>
+<script src="js/formula.js"></script>
+<script src="js/sablon.js"></script>
+<script src="js/sutun-tasi.js"></script>
+<script src="js/istatistik.js"></script>
+<script src="js/grafik.js"></script>
+<script src="js/disa-aktar.js"></script>
+<script src="js/ongoru.js"></script>
+<script src="js/acilis.js"></script>
+<script src="js/yedek.js"></script>
+<script src="js/veri.js"></script>
+<script src="js/mahsup-motoru.js"></script>
+<script src="js/degisken.js"></script>
+<script src="js/hesap.js"></script>
+<script src="js/tutarlilik.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/robot.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>
