@@ -130,8 +130,7 @@
       var guc = uretimler.reduce(function (a, u) { return a + (u.kuruluGucAC || 0); }, 0);
       var item = UI.el('button', { class: 'tesis-item' + (t.id === selectedId ? ' active' : ''), onclick: function () { selectedId = t.id; render(container); } },
         '<strong>' + U.escapeHtml(t.ad) + '</strong>' +
-        '<span>' + abs.length + ' abonelik · ' + uretimler.length + ' üretim tesisi' + (guc ? ' (' + U.formatTRNumber(guc, 0) + ' kWe)' : '') + '</span>' +
-        '<span class="muted">' + S.faturaList(t.id).length + ' fatura</span>');
+        '<span>' + abs.length + ' abonelik · ' + uretimler.length + ' üretim tesisi' + (guc ? ' (' + U.formatTRNumber(guc, 0) + ' kWe)' : '') + '</span>');
       side.appendChild(item);
     });
     page.appendChild(side);
@@ -152,14 +151,13 @@
     var wrap = UI.el('div');
     var abs = S.abonelikList(t.id);
     var uretimler = S.uretimList(t.id);
-    var tumFaturalar = S.faturaList(t.id);
 
     var head = UI.el('div', { class: 'panel-head' }, '<div><h2>' + U.escapeHtml(t.ad) + '</h2><span class="muted">' + U.escapeHtml(t.adres || '') + '</span></div>');
     var actions = UI.el('div', { class: 'actions' });
     actions.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { location.hash = '#/veriler?tt=' + t.id + '&ab=tum'; } }, 'Veriler (tümü)'));
     actions.appendChild(UI.el('button', { class: 'btn sm', onclick: function () { editTuketim(t); } }, 'Düzenle'));
     actions.appendChild(UI.el('button', { class: 'btn sm danger', onclick: function () {
-      UI.confirmModal('Tesisi sil', '"' + t.ad + '" ile birlikte ' + abs.length + ' abonelik, ' + uretimler.length + ' üretim tesisi ve ' + tumFaturalar.length + ' fatura kaydı silinecek. Emin misiniz?', 'Sil', function () {
+      UI.confirmModal('Tesisi sil', '"' + t.ad + '" ile birlikte ' + abs.length + ' abonelik, ' + uretimler.length + ' üretim tesisi ve Veriler tablosu silinecek. Emin misiniz?', 'Sil', function () {
         S.tuketimDelete(t.id); selectedId = null; render(container); UI.toast('Tesis silindi.');
       });
     } }, 'Sil'));
@@ -175,8 +173,6 @@
     }
     var cards = UI.el('div', { class: 'cards' });
     abs.forEach(function (a) {
-      var fs = S.faturaList(t.id, a.id);
-      var son = fs[fs.length - 1];
       var limitRef = a.oncekiYilTuketim;
       var c = UI.el('div', { class: 'card abonelik' });
       c.innerHTML = '<div class="card-head"><h4>' + U.escapeHtml(a.ad) + '</h4><span class="badge">' + U.escapeHtml(a.aboneGrubu || 'grup ?') + (a.gerilim ? ' · ' + a.gerilim : '') + '</span></div>' +
@@ -186,13 +182,12 @@
         kv('Tedarikçi', a.tedarikci) +
         kv('Sözleşme Gücü', a.sozlesmeGucu ? U.formatTRNumber(a.sozlesmeGucu, 0) + ' kW' : '') +
         kv('Mahsuplaşma', mahsupPeriyodu(a)) +
-        kv('Bedelli Üretim Limiti (2×)', a.aboneGrubu === 'Mesken' ? 'Limit yok (mesken)' : (limitRef ? U.formatTRNumber(limitRef * 2, 0) + ' kWh' : '')) +
-        kv('Faturalar', fs.length + (son ? ' (son: ' + U.donemLabel(son.donem) + ')' : ''));
+        kv('Bedelli Üretim Limiti (2×)', a.aboneGrubu === 'Mesken' ? 'Limit yok (mesken)' : (limitRef ? U.formatTRNumber(limitRef * 2, 0) + ' kWh' : ''));
       var act = UI.el('div', { class: 'card-actions' });
       act.appendChild(UI.el('button', { class: 'btn xs', onclick: function () { location.hash = '#/veriler?tt=' + t.id + '&ab=' + a.id; } }, 'Veriler'));
       act.appendChild(UI.el('button', { class: 'btn xs', onclick: function () { editAbonelik(a, t.id); } }, 'Düzenle'));
       act.appendChild(UI.el('button', { class: 'btn xs danger', onclick: function () {
-        UI.confirmModal('Aboneliği sil', '"' + a.ad + '" aboneliği ve ' + fs.length + ' fatura kaydı silinecek. Emin misiniz?', 'Sil', function () {
+        UI.confirmModal('Aboneliği sil', '"' + a.ad + '" aboneliği silinecek. Emin misiniz?', 'Sil', function () {
           S.abonelikDelete(a.id); UI.toast('Abonelik silindi.');
         });
       } }, 'Sil'));

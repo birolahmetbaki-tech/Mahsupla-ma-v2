@@ -8,7 +8,7 @@
   var listeners = [];
 
   function empty() {
-    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {}, sablonlar: [] };
+    return { version: 3, tuketimTesisleri: [], abonelikler: [], uretimTesisleri: [], faturalar: [], kalemEslestirme: {}, sablonlar: [], tablolar: {} };
   }
 
   // Eksik koleksiyonları ekler; sürüm numarasına dokunmaz (eski veri sürüm 1 sayılır).
@@ -117,6 +117,7 @@
     db.abonelikler = db.abonelikler.filter(function (a) { return a.tuketimTesisId !== id; });
     db.uretimTesisleri = db.uretimTesisleri.filter(function (u) { return u.tuketimTesisId !== id; });
     db.faturalar = db.faturalar.filter(function (f) { return f.tuketimTesisId !== id; });
+    delete db.tablolar[id];
     save();
   }
 
@@ -200,6 +201,17 @@
     save();
   }
 
+  // --- Veriler tablosu (tüketim tesisi başına bir hesap tablosu; bkz. tablo.js)
+  // { hucreler: { "A1": "ham giriş" }, gizliSatir: { 3: true }, gizliSutun: { 1: true }, genislik: { 0: 120 } }
+  function tabloGet(tuketimTesisId) {
+    var t = db.tablolar[tuketimTesisId] || {};
+    return { hucreler: Object.assign({}, t.hucreler), gizliSatir: Object.assign({}, t.gizliSatir), gizliSutun: Object.assign({}, t.gizliSutun), genislik: Object.assign({}, t.genislik) };
+  }
+  function tabloSave(tuketimTesisId, veri) {
+    db.tablolar[tuketimTesisId] = veri;
+    save();
+  }
+
   // --- Eski PDF içe aktarmadan kalan şablonlar: yalnız o faturaların kalem kategorilerini korumak için okunur
   function sablonGet(id) { return db.sablonlar.find(function (s) { return s.id === id; }) || null; }
   function sablonHaritasi(id) {
@@ -260,6 +272,7 @@
       });
       Object.keys(d.kalemEslestirme || {}).forEach(function (k) { if (!db.kalemEslestirme[k]) db.kalemEslestirme[k] = d.kalemEslestirme[k]; });
       (d.sablonlar || []).forEach(function (sb) { if (!sablonGet(sb.id)) db.sablonlar.push(sb); });
+      Object.keys(d.tablolar || {}).forEach(function (k) { if (!db.tablolar[k]) db.tablolar[k] = d.tablolar[k]; });
       recomputeAll(true);
     } else {
       migrate(d);
@@ -278,6 +291,7 @@
     abonelikList: abonelikList, abonelikGet: abonelikGet, abonelikSave: abonelikSave, abonelikDelete: abonelikDelete, abonelikMatch: abonelikMatch,
     uretimList: uretimList, uretimGet: uretimGet, uretimSave: uretimSave, uretimDelete: uretimDelete,
     faturaList: faturaList, faturaGet: faturaGet, faturaSave: faturaSave, faturaDelete: faturaDelete, faturaFindDuplicate: faturaFindDuplicate,
+    tabloGet: tabloGet, tabloSave: tabloSave,
     eslestirme: eslestirme, eslestirmeSet: eslestirmeSet, recomputeAll: recomputeAll, kalemAdlari: kalemAdlari,
     exportJSON: exportJSON, importJSON: importJSON, stats: stats
   };
