@@ -69,18 +69,50 @@
   function isFormula(raw) { return typeof raw === 'string' && raw.length > 1 && raw.charAt(0) === '='; }
 
   // --- Görüntüleme
-  function goster(v) {
+  // b: sayı biçimi { g: binlik ayıracı, d: ondalık basamak (yoksa gerektiği kadar), p: yüzde }; yoksa Excel'deki "Genel"
+  function goster(v, b) {
     if (v === null || v === undefined) return '';
     if (isErr(v)) return v.kod;
     if (v === true) return 'DOĞRU';
     if (v === false) return 'YANLIŞ';
     if (typeof v === 'number') {
       if (!isFinite(v)) return E.NUM.kod;
+      if (b && (b.g || b.p || typeof b.d === 'number')) {
+        var x = b.p ? v * 100 : v, d = typeof b.d === 'number' ? b.d : null;
+        var s = Number(x.toPrecision(15)).toLocaleString('tr-TR', d === null ? { useGrouping: !!b.g, maximumFractionDigits: 10 } : { useGrouping: !!b.g, minimumFractionDigits: d, maximumFractionDigits: d });
+        return s + (b.p ? '%' : '');
+      }
       var a = Math.abs(v);
       if (a !== 0 && (a >= 1e15 || a < 1e-9)) return v.toExponential(4).replace('.', ',');
-      return Number(v.toPrecision(15)).toLocaleString('tr-TR', { maximumFractionDigits: 10 });
+      return Number(v.toPrecision(15)).toLocaleString('tr-TR', { useGrouping: false, maximumFractionDigits: 10 });
     }
     return String(v);
+  }
+  // Yazılan sayının biçiminden hücre biçimi çıkarır (Excel gibi): "1.234,50" -> binlikli 2 ondalık, "3,00" -> 2 ondalık, "%18" -> yüzde
+  function bicimTahmin(raw) {
+    var s = String(raw).trim(), m;
+    var pct = /%$/.test(s);
+    if (pct) s = s.slice(0, -1).trim();
+    if ((m = /^[-+]?[1-9]\d{0,2}(\.\d{3})+(,(\d+))?$/.exec(s))) return { g: true, d: m[3] ? m[3].length : 0, p: pct || undefined };
+    if ((m = /^[-+]?\d+,(\d*0)$/.exec(s))) return { d: m[1].length, p: pct || undefined };
+    if (pct && sayiOku(s) !== null) { var dm = /,(\d+)$/.exec(s); return { p: true, d: dm ? dm[1].length : 0 }; }
+    return null;
+  }
+  // Excel biçim kodu <-> biçim: "#,##0.00" | "0.000" | "0%"
+  function bicimKodu(b) {
+    if (!b) return null;
+    var d = typeof b.d === 'number' ? b.d : null;
+    var k = (b.g ? '#,##0' : '0') + (d ? '.' + new Array(d + 1).join('0') : '') + (b.p ? '%' : '');
+    return d === null && !b.g && !b.p ? null : k;
+  }
+  function bicimOku(z) {
+    if (!z || typeof z !== 'string') return null;
+    var k = z.split(';')[0].replace(/"[^"]*"/g, '').replace(/\[[^\]]*\]/g, '');
+    if (/^general$/i.test(k.trim()) || k.trim() === '@' || /[dmyhs]/i.test(k)) return null;
+    if (!/[0#]/.test(k)) return null;
+    var g = /#,##|0,0/.test(k), p = /%/.test(k), m = /[0#]\.([0#]+)/.exec(k);
+    var b = { g: g || undefined, d: m ? m[1].length : 0, p: p || undefined };
+    return b;
   }
   function metin(v) {
     if (v === null || v === undefined) return '';
@@ -573,16 +605,52 @@
       hucreler[yeni] = yapisal(veri.hucreler[k], eksen, at, n);
     });
     veri.hucreler = hucreler;
+    var bicim = {};
+    Object.keys(veri.bicim || {}).forEach(function (k) {
+      var a = parseAddr(k);
+      if (!a) return;
+      var i = eksen === 'satir' ? a.r : a.c;
+      if (n < 0 && i >= at && i < at - n) return;
+      if (i >= at) i += n;
+      bicim[eksen === 'satir' ? addr(i, a.c) : addr(a.r, i)] = veri.bicim[k];
+    });
+    veri.bicim = bicim;
     if (eksen === 'satir') veri.gizliSatir = tasiIndeks(veri.gizliSatir, at, n);
     else { veri.gizliSutun = tasiIndeks(veri.gizliSutun, at, n); veri.genislik = tasiIndeks(veri.genislik, at, n); }
     return veri;
   }
 
+  // Formül bu motorda çalışır mı? (sözdizimi doğru, tüm işlevler ve adlar tanınıyor)
+  function desteklenir(raw) {
+    var ast;
+    try { ast = parse(String(raw).slice(1)); } catch (e) { return false; }
+    var ok = true;
+    (function gez(n) {
+      if (!n || !ok) return;
+      if (n.k === 'v' && n.v === E.NAME) ok = false;
+      else if (n.k === 'fn') { if (!ISLEV[ad(n.ad)]) ok = false; else n.args.forEach(gez); }
+      else if (n.k === 'bin') { gez(n.a); gez(n.b); }
+      else if (n.a) gez(n.a);
+    })(ast);
+    return ok;
+  }
+  // Excel dosyasındaki (İngilizce, virgül ayırıcılı) formülü bu motorun yazımına çevirir: dışarıdaki virgüller ";" olur
+  function excelFormulu(f) {
+    var out = '', tirnak = false;
+    for (var i = 0; i < f.length; i++) {
+      var ch = f.charAt(i);
+      if (ch === '"') tirnak = !tirnak;
+      out += !tirnak && ch === ',' ? ';' : ch;
+    }
+    return '=' + out.replace(/^=/, '');
+  }
+  var EXCEL_HATA = { '#DIV/0!': '#SAYI/0!', '#VALUE!': '#DEĞER!', '#NAME?': '#AD?', '#REF!': '#BAŞV!', '#N/A': '#YOK', '#NUM!': '#SAYI!', '#NULL!': '#BOŞ!' };
+
   var api = {
     colName: colName, colIndex: colIndex, addr: addr, parseAddr: parseAddr, parseRange: parseRange,
-    E: E, Hata: Hata, isErr: isErr, sabitDeger: sabitDeger, sayiOku: sayiOku, isFormula: isFormula, goster: goster,
+    E: E, Hata: Hata, isErr: isErr, sabitDeger: sabitDeger, sayiOku: sayiOku, isFormula: isFormula, goster: goster, bicimTahmin: bicimTahmin, bicimKodu: bicimKodu, bicimOku: bicimOku,
     parse: parse, formulDene: formulDene, Hesap: Hesap, kaydir: kaydir, yapisal: yapisal, yapiDegistir: yapiDegistir,
-    ISLEVLER: ISLEVLER
+    ISLEVLER: ISLEVLER, desteklenir: desteklenir, excelFormulu: excelFormulu, EXCEL_HATA: EXCEL_HATA
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else { root.App = root.App || {}; root.App.tablo = api; }

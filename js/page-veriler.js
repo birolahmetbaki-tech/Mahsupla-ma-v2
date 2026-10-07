@@ -100,8 +100,15 @@
     bar.appendChild(UI.el('button', { class: 'btn sm', id: 'xlGeri', title: 'Geri al (Ctrl+Z)', onclick: geriAl }, '↶ Geri al'));
     bar.appendChild(UI.el('button', { class: 'btn sm', id: 'xlYinele', title: 'Yinele (Ctrl+Y)', onclick: yinele }, '↷ Yinele'));
     bar.appendChild(UI.el('span', { class: 'sep' }));
+    var seg = UI.el('div', { class: 'seg', title: 'Sayı biçimi (seçili hücreler)' });
+    [['binlik', '1.000', 'Binlik ayırıcı aç/kapat'], ['artir', ',0+', 'Ondalık basamak ekle'], ['azalt', ',0−', 'Ondalık basamak azalt'], ['yuzde', '%', 'Yüzde biçimi aç/kapat'], ['genel', 'Genel', 'Biçimi temizle (Excel\'deki Genel)']].forEach(function (b) {
+      seg.appendChild(UI.el('button', { class: 'btn sm', title: b[2], onclick: function () { bicimUygula(b[0]); } }, b[1]));
+    });
+    bar.appendChild(seg);
+    bar.appendChild(UI.el('span', { class: 'sep' }));
     bar.appendChild(UI.el('button', { class: 'btn sm', id: 'xlGizli', onclick: tumunuGoster, title: 'Gizlenen tüm satır ve sütunları göster' }, ''));
     bar.appendChild(UI.el('button', { class: 'btn sm', onclick: formulYardim, title: 'Kullanılabilen formüller ve kısayollar' }, 'ƒx Formüller'));
+    bar.appendChild(UI.el('button', { class: 'btn sm', onclick: excelAc, title: 'Excel dosyasındaki bir sayfayı tabloya aktar (değerler, formüller, gizli satır/sütunlar, genişlikler)' }, 'Excel\'den aç'));
     bar.appendChild(UI.el('button', { class: 'btn sm', onclick: excelIndir, title: 'Tabloyu Excel dosyası olarak indir (değerler)' }, 'Excel indir'));
     page.appendChild(bar);
 
@@ -155,6 +162,7 @@
   function gizliR(r) { return !!st.veri.gizliSatir[r]; }
   function gizliC(c) { return !!st.veri.gizliSutun[c]; }
   function gen(c) { return st.veri.genislik[c] || VARS_GEN; }
+  function bc(r, c) { return st.veri.bicim ? st.veri.bicim[T.addr(r, c)] : undefined; }
 
   function hucreSinif(v) {
     if (v === null) return '';
@@ -187,7 +195,7 @@
         (once2 ? '<button type="button" class="xl-goster" data-eksen="satir" data-at="' + r + '" title="Gizli satırları göster">▴▾</button>' : '') + '</th>';
       for (var i = 0; i < gor.length; i++) {
         var cc = gor[i], v = st.hesap.deger(r, cc);
-        html += '<td data-r="' + r + '" data-c="' + cc + '" class="' + hucreSinif(v) + '">' + U.escapeHtml(T.goster(v)) + '</td>';
+        html += '<td data-r="' + r + '" data-c="' + cc + '" class="' + hucreSinif(v) + '">' + U.escapeHtml(T.goster(v, bc(r, cc))) + '</td>';
       }
       html += '</tr>';
     }
@@ -212,7 +220,7 @@
   function yenile() {
     hesapla();
     Object.keys(st.td).forEach(function (k) {
-      var td = st.td[k], v = st.hesap.deger(+td.dataset.r, +td.dataset.c), s = T.goster(v), cls = hucreSinif(v);
+      var td = st.td[k], v = st.hesap.deger(+td.dataset.r, +td.dataset.c), s = T.goster(v, bc(+td.dataset.r, +td.dataset.c)), cls = hucreSinif(v);
       if (td.textContent !== s) td.textContent = s;
       var tam = cls + (td.classList.contains('sel') ? ' sel' : '');
       if (td.className !== tam) td.className = tam;
@@ -316,9 +324,9 @@
     }
     var html = '<span class="muted">' + U.escapeHtml(aralikAdi(rg)) + '</span><span class="grow"></span>';
     if (dolu > 1 || say > 1) {
-      if (say) html += '<span>Ortalama: <b>' + T.goster(top / say) + '</b></span>';
+      if (say) html += '<span>Ortalama: <b>' + T.goster(top / say, { g: true }) + '</b></span>';
       html += '<span>Sayım: <b>' + dolu + '</b></span>';
-      if (say) html += '<span>Toplam: <b>' + T.goster(top) + '</b></span>';
+      if (say) html += '<span>Toplam: <b>' + T.goster(top, { g: true }) + '</b></span>';
     }
     sb.innerHTML = html;
   }
@@ -350,10 +358,27 @@
     st.veri = JSON.parse(st.redo.pop());
     kaydet(); hesapla(); boyutla(); tabloyuCiz();
   }
-  function hucreYaz(r, c, raw) {
+  // oto: yazılan sayının biçimini (binlik ayırıcı, ondalık, %) hücre biçimi yapar — hücrenin biçimi yoksa
+  function hucreYaz(r, c, raw, oto) {
     var k = T.addr(r, c);
-    if (raw === null || raw === undefined || raw === '') delete st.veri.hucreler[k];
-    else st.veri.hucreler[k] = String(raw);
+    if (raw === null || raw === undefined || raw === '') { delete st.veri.hucreler[k]; return; }
+    st.veri.hucreler[k] = String(raw);
+    if (!oto) return;
+    st.veri.bicim = st.veri.bicim || {};
+    if (st.veri.bicim[k]) return;
+    var b = null;
+    if (!T.isFormula(raw)) b = T.bicimTahmin(raw);
+    else {
+      // Formül, başvurduğu ilk biçimli hücrenin biçimini alır (Excel'deki gibi =TOPLA(D2:D17) binlikli görünür)
+      var m = String(raw).replace(/"[^"]*"/g, '').match(/\$?[A-Za-z]{1,3}\$?\d+/g) || [];
+      for (var i = 0; i < m.length && !b; i++) { var a = T.parseAddr(m[i]); if (a) b = bc(a.r, a.c) || null; }
+    }
+    if (b) st.veri.bicim[k] = Object.assign({}, b);
+  }
+  function bicimYaz(r, c, b) {
+    st.veri.bicim = st.veri.bicim || {};
+    var k = T.addr(r, c);
+    if (b) st.veri.bicim[k] = b; else delete st.veri.bicim[k];
   }
 
   // ---- Düzenleme
@@ -410,7 +435,7 @@
           return false;
         }
       }
-      degistir(function () { hucreYaz(e.r, e.c, deger === '' ? null : deger); });
+      degistir(function () { hucreYaz(e.r, e.c, deger === '' ? null : deger, true); });
     }
     e.kapaniyor = true;
     if (e.input) e.input.remove();
@@ -586,6 +611,30 @@
     UI.toast(n + ' satır/sütun gösterildi.', 'ok');
   }
 
+  // Sayı biçimi: seçili hücrelere uygulanır; tüm satır/sütun seçiminde kullanılan alanla sınırlıdır
+  function bicimUygula(tur) {
+    if (st.edit && !bitir(true)) return;
+    var rg = st.mod === 'hucre' ? aralik() : sinirli(aralik());
+    var ab = bc(st.sel.r, st.sel.c) || {};
+    // Etkin hücrenin şu anki ondalık sayısı (biçim yoksa görünen değerden)
+    var d0 = typeof ab.d === 'number' ? ab.d : (function () {
+      var s = T.goster(st.hesap.deger(st.sel.r, st.sel.c)), m = /,(\d+)/.exec(s);
+      return m ? m[1].length : 0;
+    })();
+    degistir(function () {
+      for (var r = rg.r0; r <= rg.r1; r++) for (var c = rg.c0; c <= rg.c1; c++) {
+        var b = tur === 'genel' ? null : Object.assign({}, bc(r, c) || {});
+        if (tur === 'binlik') { if (ab.g) delete b.g; else b.g = true; if (typeof b.d !== 'number') b.d = d0; }
+        if (tur === 'artir') b.d = Math.min(10, d0 + 1);
+        if (tur === 'azalt') b.d = Math.max(0, d0 - 1);
+        if (tur === 'yuzde') { if (ab.p) delete b.p; else { b.p = true; if (typeof b.d !== 'number') b.d = 0; } }
+        bicimYaz(r, c, b && (b.g || b.p || typeof b.d === 'number') ? b : null);
+      }
+    });
+    yenile();
+    if (izgara()) izgara().focus({ preventScroll: true });
+  }
+
   function ekleSil(eksen, at, n) {
     degistir(function () { T.yapiDegistir(st.veri, eksen, at, n); });
     hesapla();
@@ -616,7 +665,8 @@
         var mod = ((konum % uz) + uz) % uz;
         var sr = dikey ? kaynak.r0 + mod : r, sc = dikey ? c : kaynak.c0 + mod;
         var sd = dikey ? c : r, seri = seriler[sd];
-        if (seri) { hucreYaz(r, c, T.goster(Number((seri.ilk + seri.adim * konum).toPrecision(15))).replace(/\./g, '')); continue; }
+        bicimYaz(r, c, bc(sr, sc));
+        if (seri) { hucreYaz(r, c, T.goster(Number((seri.ilk + seri.adim * konum).toPrecision(15)))); continue; }
         var src = st.veri.hucreler[T.addr(sr, sc)];
         hucreYaz(r, c, src === undefined ? null : (T.isFormula(src) ? T.kaydir(src, r - sr, c - sc) : src));
       }
@@ -640,18 +690,19 @@
     return { r0: rg.r0, c0: rg.c0, r1: Math.min(rg.r1, Math.max(st.hesap.maxR, rg.r0)), c1: Math.min(rg.c1, Math.max(st.hesap.maxC, rg.c0)) };
   }
   function kopyala(kes, olay) {
-    var rg = sinirli(aralik()), satirlar = [], ham = [];
+    var rg = sinirli(aralik()), satirlar = [], ham = [], bic = [];
     for (var r = rg.r0; r <= rg.r1; r++) {
-      var s = [], h = [];
+      var s = [], h = [], b = [];
       for (var c = rg.c0; c <= rg.c1; c++) {
         var v = st.hesap.deger(r, c);
-        s.push(v === null ? '' : T.goster(v));
+        s.push(v === null ? '' : T.goster(v, bc(r, c)));
         h.push(st.veri.hucreler[T.addr(r, c)]);
+        b.push(bc(r, c));
       }
-      satirlar.push(s.join('\t')); ham.push(h);
+      satirlar.push(s.join('\t')); ham.push(h); bic.push(b);
     }
     var metin = satirlar.join('\r\n');
-    st.pano = { rg: rg, ham: ham, metin: metin, kes: !!kes };
+    st.pano = { rg: rg, ham: ham, bic: bic, metin: metin, kes: !!kes };
     if (olay && olay.clipboardData) { olay.clipboardData.setData('text/plain', metin); olay.preventDefault(); }
     else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(metin).catch(function () { /* yalnız iç pano */ });
     if (!olay) UI.toast((kes ? 'Kesildi' : 'Kopyalandı') + ': ' + aralikAdi(rg) + ' — yapıştırmak için Ctrl+V', 'ok');
@@ -681,11 +732,12 @@
       var tekrarR = (rg.r1 - rg.r0 + 1) % h === 0 && st.mod === 'hucre' ? (rg.r1 - rg.r0 + 1) / h : 1;
       var tekrarC = (rg.c1 - rg.c0 + 1) % w === 0 && st.mod === 'hucre' ? (rg.c1 - rg.c0 + 1) / w : 1;
       degistir(function () {
-        if (p.kes) for (var a = p.rg.r0; a <= p.rg.r1; a++) for (var b = p.rg.c0; b <= p.rg.c1; b++) delete st.veri.hucreler[T.addr(a, b)];
+        if (p.kes) for (var a = p.rg.r0; a <= p.rg.r1; a++) for (var b = p.rg.c0; b <= p.rg.c1; b++) { delete st.veri.hucreler[T.addr(a, b)]; bicimYaz(a, b, null); }
         for (var tr = 0; tr < tekrarR; tr++) for (var tc = 0; tc < tekrarC; tc++)
           for (var i = 0; i < h; i++) for (var j = 0; j < w; j++) {
             var src = p.ham[i][j], r = r0 + tr * h + i, c = c0 + tc * w + j;
             hucreYaz(r, c, src === undefined ? null : (T.isFormula(src) && !p.kes ? T.kaydir(src, r - (p.rg.r0 + i), c - (p.rg.c0 + j)) : src));
+            bicimYaz(r, c, p.bic[i][j]);
           }
       });
       if (p.kes) st.pano = null;
@@ -693,7 +745,7 @@
     } else {
       var tablo = tsvOku(metin);
       degistir(function () {
-        tablo.forEach(function (satir, i) { satir.forEach(function (v, j) { hucreYaz(r0 + i, c0 + j, v.trim() === '' ? null : v); }); });
+        tablo.forEach(function (satir, i) { satir.forEach(function (v, j) { hucreYaz(r0 + i, c0 + j, v.trim() === '' ? null : v, true); }); });
       });
       st.anchor = { r: r0, c: c0 }; st.sel = { r: r0 + tablo.length - 1, c: c0 + Math.max.apply(null, tablo.map(function (s) { return s.length; })) - 1 }; st.mod = 'hucre';
     }
@@ -916,6 +968,8 @@
       'Başvurular: <code>A1</code>, aralık <code>A1:C10</code>, tüm sütun <code>B:B</code>; <code>$A$1</code> kopyalarken sabit kalır. ' +
       'İşleçler: <code>+ - * / ^ %</code>, metin birleştirme <code>&amp;</code>, karşılaştırma <code>= &lt;&gt; &lt; &gt; &lt;= &gt;=</code>.</p>' +
       '<p>Formül yazarken bir hücreye tıklamak ya da sürüklemek başvuruyu formüle ekler. Sağ alt köşedeki tutamaç sürüklenerek formül/seri doldurulur.</p>' +
+      '<p>Sayı biçimi: araç çubuğundaki <b>1.000</b> (binlik ayırıcı), <b>,0+ / ,0−</b> (ondalık basamak), <b>%</b> ve <b>Genel</b> düğmeleri seçili hücrelere uygulanır. ' +
+      'Sayıyı <code>1.234,50</code> ya da <code>3,00</code> gibi yazarsanız biçim kendiliğinden ayarlanır.</p>' +
       '<div class="table-wrap"><table class="table"><thead><tr><th>İşlev</th><th>Açıklama</th><th>Örnek</th></tr></thead><tbody>' + satirlar + '</tbody></table></div>' +
       '<h4>Kısayollar</h4><p class="small">Oklar / Ctrl+ok (veri kenarı) · Shift+ok (seçim) · F2 veya yazmaya başlama (düzenle) · Enter / Tab · Esc · Delete (temizle) · ' +
       'Ctrl+C / X / V · Ctrl+Z / Y · Ctrl+A · Ctrl+D / Ctrl+R (aşağı / sağa doldur) · Ctrl+9 / Ctrl+0 (satır / sütun gizle) · Ctrl+Shift+9 / 0 (göster). ' +
@@ -923,6 +977,93 @@
     UI.openModal('Formüller ve kısayollar', body, [{ label: 'Kapat', class: 'primary', onclick: UI.closeModal }]);
     var box = document.querySelector('#modal .modal-box');
     if (box) box.classList.add('wide');
+  }
+
+  // ---- Excel'den içe aktarma
+  function excelAc() {
+    var X = root.XLSX;
+    if (!X) { UI.toast('Excel kütüphanesi yüklenemedi.', 'err'); return; }
+    if (st.edit) bitir(true);
+    var inp = UI.el('input', { type: 'file', accept: '.xlsx,.xlsm,.xls,.ods,.csv' });
+    inp.onchange = function () {
+      var f = inp.files[0];
+      if (!f) return;
+      f.arrayBuffer().then(function (buf) {
+        var wb;
+        try { wb = X.read(new Uint8Array(buf), { type: 'array', cellFormula: true, cellDates: true, cellStyles: true, cellNF: true }); }
+        catch (e) { UI.toast('Dosya okunamadı: ' + e.message, 'err'); return; }
+        var adlar = wb.SheetNames.filter(function (n) { return wb.Sheets[n] && wb.Sheets[n]['!ref']; });
+        if (!adlar.length) { UI.toast('Dosyada dolu sayfa yok.', 'err'); return; }
+        var bos = !Object.keys(st.veri.hucreler).length;
+        var body = UI.el('div', { class: 'form-grid' },
+          '<label class="field full"><span class="field-label">Excel sayfası</span><select name="sayfa">' +
+          adlar.map(function (n) { return '<option>' + U.escapeHtml(n) + '</option>'; }).join('') + '</select></label>' +
+          '<label class="field full"><span class="field-label">Nereye</span><select name="yer">' +
+          '<option value="degistir">Mevcut tabloyu tamamen değiştir (A1\'den)</option>' +
+          '<option value="secili"' + (bos ? '' : ' selected') + '>Seçili hücreden (' + T.addr(aralik().r0, aralik().c0) + ') itibaren yerleştir</option></select></label>' +
+          '<p class="muted full">Değerler, formüller (desteklenenler), gizli satır/sütunlar ve sütun genişlikleri aktarılır. Desteklenmeyen formüllerin yerine Excel\'deki son hesaplanmış değer yazılır. İşlem geri alınabilir (Ctrl+Z).</p>');
+        UI.openModal('Excel\'den aç — ' + f.name, body, [
+          { label: 'Vazgeç', onclick: UI.closeModal },
+          { label: 'Aktar', class: 'primary', onclick: function () {
+            var ad = body.querySelector('[name=sayfa]').value, yer = body.querySelector('[name=yer]').value;
+            UI.closeModal();
+            excelSayfasiniAktar(X, wb.Sheets[ad], yer);
+          } }
+        ]);
+      });
+    };
+    inp.click();
+  }
+
+  function sayiMetni(n) { return String(n).replace('.', ','); }
+  function excelSayfasiniAktar(X, ws, yer) {
+    var r0 = 0, c0 = 0;
+    if (yer === 'secili') { var rg = aralik(); r0 = rg.r0; c0 = rg.c0; }
+    var say = { hucre: 0, formul: 0, deger: 0 };
+    var yeni = {}, yeniBicim = {};
+    Object.keys(ws).forEach(function (k) {
+      if (k.charAt(0) === '!') return;
+      var a = X.utils.decode_cell(k), c = ws[k], raw = null;
+      if (c.f) {
+        var fr = T.excelFormulu(c.f);
+        if (!T.formulDene(fr) && T.desteklenir(fr)) { raw = (r0 || c0) ? T.kaydir(fr, r0, c0) : fr; say.formul++; }
+        else say.deger++;
+      }
+      if (raw === null) {
+        if (c.t === 'n') raw = sayiMetni(c.v);
+        else if (c.t === 'b') raw = c.v ? 'DOĞRU' : 'YANLIŞ';
+        else if (c.t === 'e') raw = T.EXCEL_HATA[c.w] || c.w || '#DEĞER!';
+        else if (c.t === 'd' && c.v instanceof Date) raw = U.formatTRDate(c.v.toISOString().slice(0, 10));
+        else if (c.t === 's' || c.t === 'str') {
+          raw = String(c.v);
+          if (raw !== '' && (raw.charAt(0) === '=' || T.sabitDeger(raw) !== raw)) raw = "'" + raw; // sayıya/formüle dönüşmesin
+        }
+      }
+      if (raw === null || raw === '') return;
+      yeni[T.addr(a.r + r0, a.c + c0)] = raw;
+      var bf = T.bicimOku(c.z);
+      if (bf) yeniBicim[T.addr(a.r + r0, a.c + c0)] = bf;
+      say.hucre++;
+    });
+    degistir(function () {
+      if (yer === 'degistir') st.veri = { hucreler: {}, bicim: {}, gizliSatir: {}, gizliSutun: {}, genislik: {} };
+      st.veri.bicim = st.veri.bicim || {};
+      Object.keys(yeni).forEach(function (k) { st.veri.hucreler[k] = yeni[k]; delete st.veri.bicim[k]; });
+      Object.keys(yeniBicim).forEach(function (k) { st.veri.bicim[k] = yeniBicim[k]; });
+      (ws['!cols'] || []).forEach(function (col, i) {
+        if (!col) return;
+        // Excel genişliği karakter cinsindendir; bu yazı boyutunda karakter ~8px (SheetJS'in hesapladığı wpx 7px varsayar, dar kalır)
+        var ch = col.wch || col.width, px = ch ? Math.round(ch * 8 + 12) : col.wpx;
+        if (px && Math.abs(px - VARS_GEN) > 2) st.veri.genislik[i + c0] = Math.max(24, Math.min(600, px));
+        if (col.hidden) st.veri.gizliSutun[i + c0] = true;
+      });
+      (ws['!rows'] || []).forEach(function (row, i) { if (row && row.hidden) st.veri.gizliSatir[i + r0] = true; });
+    });
+    hesapla(); boyutla(); tabloyuCiz();
+    st.mod = 'hucre'; st.anchor = { r: r0, c: c0 }; st.sel = { r: r0, c: c0 };
+    boya(true);
+    UI.toast(say.hucre + ' hücre aktarıldı' + (say.formul ? ', ' + say.formul + ' formül' : '') +
+      (say.deger ? '. ' + say.deger + ' formül desteklenmediği için değeri yazıldı' : '') + '.', say.deger ? 'warn' : 'ok');
   }
 
   function excelIndir() {
@@ -940,6 +1081,10 @@
       aoa.push(s);
     }
     var ws = X.utils.aoa_to_sheet(aoa);
+    Object.keys(st.veri.bicim || {}).forEach(function (k) {
+      var kod = T.bicimKodu(st.veri.bicim[k]), a = T.parseAddr(k);
+      if (kod && a && ws[k] && ws[k].t === 'n') ws[k].z = kod;
+    });
     var cols = [], rows = [];
     for (var c2 = 0; c2 <= maxC; c2++) cols.push({ wpx: gen(c2), hidden: gizliC(c2) });
     for (var r2 = 0; r2 <= maxR; r2++) rows.push(gizliR(r2) ? { hidden: true } : {});

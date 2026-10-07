@@ -202,10 +202,10 @@
   }
 
   // --- Veriler tablosu (tüketim tesisi başına bir hesap tablosu; bkz. tablo.js)
-  // { hucreler: { "A1": "ham giriş" }, gizliSatir: { 3: true }, gizliSutun: { 1: true }, genislik: { 0: 120 } }
+  // { hucreler: { "A1": "ham giriş" }, bicim: { "A1": { g, d, p } }, gizliSatir: { 3: true }, gizliSutun: { 1: true }, genislik: { 0: 120 } }
   function tabloGet(tuketimTesisId) {
     var t = db.tablolar[tuketimTesisId] || {};
-    return { hucreler: Object.assign({}, t.hucreler), gizliSatir: Object.assign({}, t.gizliSatir), gizliSutun: Object.assign({}, t.gizliSutun), genislik: Object.assign({}, t.genislik) };
+    return { hucreler: Object.assign({}, t.hucreler), gizliSatir: Object.assign({}, t.gizliSatir), gizliSutun: Object.assign({}, t.gizliSutun), genislik: Object.assign({}, t.genislik), bicim: Object.assign({}, t.bicim) };
   }
   function tabloSave(tuketimTesisId, veri) {
     db.tablolar[tuketimTesisId] = veri;

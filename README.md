@@ -11,12 +11,13 @@ düzenli olarak **Yedek Al** ile JSON yedeği alın.
 - **Veriler** — alttaki sekmelerle iki sayfa:
   - **Faturalar**: tüketim tesisine ait boş bir hesap tablosu (Excel gibi A, B, C… sütunları ve 1, 2, 3… satırları).
     Hücrelere değer ya da `=` ile başlayan formül yazılır (Türkçe Excel sözdizimi: `=TOPLA(A1:A12)`, `=EĞER(B2>0;"Var";"Yok")`; İngilizce adlar da çalışır).
-    Satır/sütun gizleme-gösterme, ekleme-silme, sütun genişliği, kopyala/kes/yapıştır (Excel'den de), doldurma tutamacı, geri al/yinele, Excel indirme.
+    Satır/sütun gizleme-gösterme, ekleme-silme, sütun genişliği, sayı biçimi (binlik ayırıcı, ondalık, %), kopyala/kes/yapıştır (Excel'den de),
+    doldurma tutamacı, geri al/yinele, **Excel'den aç** (değer, formül, biçim, gizli satır/sütun, genişlik) ve Excel indirme.
   - **OSOS (Saatlik)**: sayaçların saatlik çekiş/veriş verileri (Excel/CSV içe aktarma, sütun eşleştirme) ve saatlik mahsuplaşma:
     mahsup = min(üretim, tüketim), ihtiyaç fazlası, net çekiş, öz tüketim oranı, aylık mahsuplaşmaya göre fark, 2× bedelli üretim limiti takibi.
 
 ## Veri modeli
-- Hesap tablosu: `tablolar[tüketimTesisId] = { hucreler: { "A1": "ham giriş" }, gizliSatir, gizliSutun, genislik }`; formül motoru `js/tablo.js`.
+- Hesap tablosu: `tablolar[tüketimTesisId] = { hucreler: { "A1": "ham giriş" }, bicim: { "A1": { g, d, p } }, gizliSatir, gizliSutun, genislik }`; formül motoru `js/tablo.js`.
 - Önceki sürümlerden kalan fatura kayıtları (`faturalar`) silinmez; yedekte durur, OSOS sayfasındaki fatura karşılaştırmasında kullanılır.
 
 ## Geliştirme

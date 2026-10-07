@@ -110,6 +110,7 @@ main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .toast { background: #13202f; color: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.2); transition: opacity .4s; max-width: 380px; }
 .toast.ok { background: var(--ok); }
 .toast.err { background: var(--err); }
+.toast.warn { background: var(--warn); }
 .toast.hide { opacity: 0; }
 
 /* Araç çubuğu */

@@ -73,8 +73,23 @@ esit('formulDene', T.formulDene('=TOPLA(A1:A2'), '")" bekleniyordu');
 esit('formulDene tamam', T.formulDene('=TOPLA(A1:A2)'), null);
 
 // Görüntüleme
-esit('göster sayı', T.goster(1234567.891), '1.234.567,891');
+esit('göster genel (Excel gibi ayırıcısız)', T.goster(1234567.891), '1234567,891');
+esit('göster yıl', T.goster(2026), '2026');
+esit('göster binlik', T.goster(1929196, { g: true, d: 0 }), '1.929.196');
+esit('göster 2 ondalık', T.goster(3, { d: 2 }), '3,00');
+esit('göster 3 ondalık binlik', T.goster(2.91, { g: true, d: 3 }), '2,910');
+esit('göster yüzde', T.goster(0.185, { p: true, d: 1 }), '18,5%');
+esit('tahmin binlik', JSON.stringify(T.bicimTahmin('1.234,50')), '{"g":true,"d":2}');
+esit('tahmin 3,00', JSON.stringify(T.bicimTahmin('3,00')), '{"d":2}');
+esit('tahmin yok', T.bicimTahmin('3,5'), null);
+esit('tahmin yüzde', JSON.stringify(T.bicimTahmin('18%')), '{"p":true,"d":0}');
+esit('bicimKodu', T.bicimKodu({ g: true, d: 2 }), '#,##0.00');
+esit('bicimOku', JSON.stringify(T.bicimOku('#,##0.000')), '{"g":true,"d":3}');
+esit('bicimOku TL', JSON.stringify(T.bicimOku('#,##0 "TL";-#,##0 "TL"')), '{"g":true,"d":0}');
+esit('bicimOku genel', T.bicimOku('General'), null);
+esit('bicimOku tarih', T.bicimOku('dd.mm.yyyy'), null);
 esit('göster kayan', T.goster(0.1 + 0.2), '0,3');
+esit('yapı biçim taşınır', JSON.stringify(T.yapiDegistir({ hucreler: {}, bicim: { B2: { d: 2 } }, gizliSatir: {}, gizliSutun: {}, genislik: {} }, 'satir', 0, 1).bicim), '{"B3":{"d":2}}');
 esit('göster mantık', T.goster(false), 'YANLIŞ');
 
 // Başvuru kaydırma
@@ -97,6 +112,13 @@ esit('yapı ekle gizli', JSON.stringify(v.gizliSatir), '{"2":true}');
 const s = T.yapiDegistir({ hucreler: { A1: '1', B1: '2', C1: '=A1+B1' }, gizliSatir: {}, gizliSutun: { 2: true }, genislik: { 2: 140 } }, 'sutun', 1, -1);
 esit('yapı sil hücre', s.hucreler.B1, '=A1+#BAŞV!');
 esit('yapı sil genişlik', JSON.stringify(s.genislik), '{"1":140}');
+
+// Excel'den gelen formüller
+esit('excelFormulu', T.excelFormulu('IF(A1>0,1.5,"a,b")'), '=IF(A1>0;1.5;"a,b")');
+esit('excel formülü hesap', hesap({ A1: '2', B1: T.excelFormulu('IF(A1>0,1.5,0)') }, 'B1'), 1.5);
+esit('desteklenir', T.desteklenir('=TOPLA(A1:A3)'), true);
+esit('desteklenmez işlev', T.desteklenir('=XLOOKUP(A1,B:B,C:C)'), false);
+esit('desteklenmez sayfa başvurusu', T.desteklenir("=Sayfa2!A1"), false);
 
 console.log(hata ? hata + ' test başarısız' : 'Tüm tablo testleri geçti');
 process.exit(hata ? 1 : 0);
